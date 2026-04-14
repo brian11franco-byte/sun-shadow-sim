@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sun Movement & Shadow Formation — 3D Shapes</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden; touch-action: none;
+    user-select: none; -webkit-user-select: none;
+    height: 100vh; width: 100vw;
+  }
+  canvas { display: block; width: 100vw; height: 100vh; }
+
+  #timeLabel {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.45); color: #fff; padding: 10px 28px;
+    border-radius: 30px; font-size: clamp(16px, 3.5vw, 26px); font-weight: 600;
+    z-index: 10; pointer-events: none;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); white-space: nowrap;
+  }
+  #shapeLabel {
+    position: fixed; top: 62px; left: 50%; transform: translateX(-50%);
+    background: rgba(90,60,160,0.7); color: #fff; padding: 6px 18px;
+    border-radius: 20px; font-size: clamp(11px, 2.2vw, 16px); font-weight: 500;
+    z-index: 10; pointer-events: none; backdrop-filter: blur(4px); white-space: nowrap;
+  }
+  #observationBox {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.92); color: #333; padding: 12px 24px;
+    border-radius: 16px; font-size: clamp(14px, 3vw, 20px); font-weight: 500;
+    z-index: 10; pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    text-align: center; max-width: 90vw; line-height: 1.4;
+  }
+  #instructions {
+    position: fixed; top: 96px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,200,0.9); color: #555; padding: 8px 20px;
+    border-radius: 12px; font-size: clamp(12px, 2.5vw, 16px);
+    z-index: 10; pointer-events: none; transition: opacity 1.5s; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="timeLabel">12:00 PM — Midday</div>
+<div id="shapeLabel">3D Shapes: Rectangular Prisms, Cones, Cylinders, Spheres</div>
+<div id="instructions">Drag the sun across the sky to see how light and shadows change!</div>
+<div id="observationBox"></div>
+
+<canvas id="scene"></canvas>
+
+<script>
+// ============================================================
+// SUN MOVEMENT & SHADOW FORMATION — 3D + RAY-TRACED LIGHTING
+// Grade 2 Cambridge Primary Science + Maths (3D Figures)
+// ============================================================
+
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+const timeLabel = document.getElementById('timeLabel');
+const observationBox = document.getElementById('observationBox');
+const instructionsEl = document.getElementById('instructions');
+
+let W, H, horizonY, arcCX, arcCY, arcRX, arcRY;
+let dpr = window.devicePixelRatio || 1;
+
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  horizonY = H * 0.52;
+  arcCX = W / 2; arcCY = horizonY;
+  arcRX = W * 0.44; arcRY = H * 0.42;
+}
+resize();
+window.addEventListener('resize', () => { resize(); draw(); });
+
+// --- Sun state ---
+let sunAngle = Math.PI / 2;
+let dragging = false;
+
+function getSunPos(a) {
+  return { x: arcCX - Math.cos(a) * arcRX, y: arcCY - Math.sin(a) * arcRY };
+}
+
+function getTimeFromAngle(a) {
+  const hours = 6 + (a / Math.PI) * 12;
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  const dh = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const ts = dh + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+  let p = '';
+  if (hours < 8) p = 'Early Morning';
+  else if (hours < 10) p = 'Morning';
+  else if (hours < 11.5) p = 'Late Morning';
+  else if (hours < 12.5) p = 'Midday';
+  else if (hours < 14) p = 'Early Afternoon';
+  else if (hours < 16) p = 'Afternoon';
+  else if (hours < 17.5) p = 'Late Afternoon';
+  else p = 'Evening';
+  return { timeStr: ts, period: p, hours };
+}
+
+function getObservation(a, hours) {
+  if (hours < 8 || hours > 17) return 'The sun is very low. The shadows are very <b>long</b>!';
+  if (hours < 10 || hours > 15.5) return 'The sun is getting higher. The shadows are getting <b>shorter</b>.';
+  if (hours >= 11 && hours <= 13) return 'The sun is high up! The shadows are very <b>short</b>.';
+  return 'Watch the shadows change as you move the sun!';
+}
+
+// ============================================================
+// LIGHTING ENGINE — Simulated ray tracing
+// ============================================================
+
+// Compute light direction vector from sun position
+// Returns { lx, ly } normalized, and intensity (0-1) based on sun altitude
+function getLightInfo(sunPos) {
+  // Light direction: from sun toward ground center
+  const intensity = Math.sin(sunAngle); // 0 at horizon, 1 at zenith
+
+  // Light comes FROM the sun, so direction is away from sun
+  // For left/right face shading: sunAngle < PI/2 means sun on left (east), > PI/2 means right (west)
+  const sunNormX = Math.cos(sunAngle); // negative = sun on right, positive = sun on left
+
+  // Warm/cool color temperature based on sun altitude
+  // Low sun = warm orange light, high sun = bright white light
+  const warmth = 1 - intensity; // 1 = warm (low sun), 0 = neutral (high sun)
+
+  return { intensity, sunNormX, warmth };
+}
+
+// Apply lighting to a base color: returns CSS color string
+// normal: -1 = facing left, 0 = facing up, 1 = facing right
+// baseR/G/B: base color channels
+function litColor(r, g, b, normalX, normalY, light) {
+  // Diffuse lighting: dot product of surface normal and light direction
+  // normalX: -1 (left-facing), 0 (front-facing), 1 (right-facing)
+  // normalY: 0 (vertical face), -1 (top face, facing up)
+
+  // Light comes from sun: sunNormX > 0 means sun is on left (east)
+  const dotX = normalX * light.sunNormX;
+  const dotY = normalY * (-1); // light from above, top faces lit when sun is high
+  const diffuse = Math.max(0, dotX * 0.5 + dotY * light.intensity * 0.5 + 0.3);
+
+  // Ambient + diffuse
+  const ambient = 0.35;
+  const totalLight = Math.min(1, ambient + diffuse * 0.65);
+
+  // Apply warm tint for low sun
+  const warmR = light.warmth * 35;
+  const warmG = light.warmth * 15;
+  const warmB = -light.warmth * 20;
+
+  const fr = Math.min(255, Math.max(0, r * totalLight + warmR * totalLight));
+  const fg = Math.min(255, Math.max(0, g * totalLight + warmG * totalLight));
+  const fb = Math.min(255, Math.max(0, b * totalLight + warmB * totalLight));
+
+  return 'rgb(' + Math.round(fr) + ',' + Math.round(fg) + ',' + Math.round(fb) + ')';
+}
+
+// Specular highlight for shiny surfaces
+function specularHighlight(normalX, normalY, light, shininess) {
+  const reflect = 2 * (normalX * light.sunNormX + normalY * (-light.intensity)) * normalX - light.sunNormX;
+  const spec = Math.pow(Math.max(0, reflect), shininess) * light.intensity;
+  return Math.min(0.5, spec * 0.6);
+}
+
+// ============================================================
+// SHADOW COMPUTATION
+// ============================================================
+
+function getShadowParams(angle) {
+  const sunH = Math.sin(angle);
+  // MUCH larger shadows — max extends almost half the screen width
+  const maxLen = W * 0.45;
+  // Steeper curve: shadows grow dramatically as sun gets lower
+  // At noon (sunH≈1): very short. At sunrise/sunset (sunH≈0): extremely long
+  let sLen;
+  if (sunH < 0.03) {
+    sLen = maxLen;
+  } else {
+    // Using a power curve for more dramatic length changes
+    const heightFactor = Math.pow(1 - sunH, 2.2) / Math.pow(sunH, 0.8);
+    sLen = maxLen * heightFactor * 0.45;
+  }
+  sLen = Math.min(sLen, maxLen);
+  // Even at noon, keep a tiny visible shadow so students see it never fully disappears
+  sLen = Math.max(sLen, W * 0.015);
+  const sDir = angle < Math.PI / 2 ? 1 : -1;
+  return { shadowDir: sDir, shadowLen: sLen };
+}
+
+// ============================================================
+// PERSPECTIVE
+// ============================================================
+function perspY(depth) { return horizonY + (H - horizonY) * depth; }
+function perspScale(depth) { return 0.35 + depth * 0.65; }
+
+// ============================================================
+// SKY
+// ============================================================
+function getSkyGradient(a) {
+  const t = a / Math.PI;
+  const dawn =    { top: [45,30,80],   mid: [220,120,70],  bot: [245,180,100] };
+  const morn =    { top: [80,150,230],  mid: [140,200,250], bot: [200,230,255] };
+  const noon =    { top: [50,130,230],  mid: [120,190,250], bot: [180,220,255] };
+  const eve  =    { top: [80,150,230],  mid: [140,200,250], bot: [200,230,255] };
+  const dusk =    { top: [50,25,70],    mid: [200,100,60],  bot: [240,160,80] };
+
+  function l3(a,b,f) { return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
+  function rgb(c) { return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')'; }
+
+  let top, mid, bot;
+  if (t<0.15) { const f=t/0.15; top=l3(dawn.top,morn.top,f); mid=l3(dawn.mid,morn.mid,f); bot=l3(dawn.bot,morn.bot,f); }
+  else if (t<0.5) { const f=(t-0.15)/0.35; top=l3(morn.top,noon.top,f); mid=l3(morn.mid,noon.mid,f); bot=l3(morn.bot,noon.bot,f); }
+  else if (t<0.85) { const f=(t-0.5)/0.35; top=l3(noon.top,eve.top,f); mid=l3(noon.mid,eve.mid,f); bot=l3(noon.bot,eve.bot,f); }
+  else { const f=(t-0.85)/0.15; top=l3(eve.top,dusk.top,f); mid=l3(eve.mid,dusk.mid,f); bot=l3(eve.bot,dusk.bot,f); }
+
+  const g = ctx.createLinearGradient(0, 0, 0, horizonY);
+  g.addColorStop(0, rgb(top)); g.addColorStop(0.5, rgb(mid)); g.addColorStop(1, rgb(bot));
+  return g;
+}
+
+// ============================================================
+// VISIBLE LIGHT RAYS FROM SUN
+// ============================================================
+function drawSunRays(sunPos, light) {
+  ctx.save();
+
+  // Draw visible rays from sun toward the ground/objects
+  const rayCount = 14;
+  const spread = Math.PI * 0.55;
+  const startAngle = Math.PI / 2 - spread / 2;
+
+  const rayAlpha = 0.04 + light.intensity * 0.06;
+
+  for (let i = 0; i < rayCount; i++) {
+    const t = i / (rayCount - 1);
+    const angle = startAngle + t * spread;
+
+    // Ray direction downward from sun
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+
+    const rayLen = H * 0.9;
+
+    const grad = ctx.createLinearGradient(
+      sunPos.x, sunPos.y,
+      sunPos.x + dx * rayLen, sunPos.y + dy * rayLen
+    );
+
+    // Warm colored rays at sunrise/sunset, white-yellow at noon
+    const warmR = Math.round(255);
+    const warmG = Math.round(240 - light.warmth * 40);
+    const warmB = Math.round(180 - light.warmth * 100);
+
+    grad.addColorStop(0, 'rgba('+warmR+','+warmG+','+warmB+','+(rayAlpha * 1.5)+')');
+    grad.addColorStop(0.3, 'rgba('+warmR+','+warmG+','+warmB+','+(rayAlpha * 0.8)+')');
+    grad.addColorStop(1, 'rgba('+warmR+','+warmG+','+warmB+',0)');
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 6 + Math.sin(Date.now() / 2000 + i) * 2;
+    ctx.beginPath();
+    ctx.moveTo(sunPos.x, sunPos.y);
+    ctx.lineTo(sunPos.x + dx * rayLen, sunPos.y + dy * rayLen);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// CLOUDS
+// ============================================================
+function drawCloud(cx, cy, scale, light) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+
+  // Cloud lit by sun — brighter on sun-facing side
+  const litSide = light.sunNormX > 0 ? -1 : 1;
+  const cloudGrad = ctx.createLinearGradient(litSide * -40, -15, litSide * 40, 10);
+  const bright = Math.round(245 + light.intensity * 10);
+  const dark = Math.round(200 + light.intensity * 20);
+  cloudGrad.addColorStop(0, 'rgba('+bright+','+bright+','+(bright-10)+',0.9)');
+  cloudGrad.addColorStop(1, 'rgba('+dark+','+(dark-5)+','+(dark-15)+',0.75)');
+
+  ctx.fillStyle = cloudGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, 25, 0, Math.PI*2);
+  ctx.arc(25, -5, 20, 0, Math.PI*2);
+  ctx.arc(-25, -3, 18, 0, Math.PI*2);
+  ctx.arc(12, -15, 18, 0, Math.PI*2);
+  ctx.arc(-10, -12, 20, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ============================================================
+// HILLS
+// ============================================================
+function drawHills(light) {
+  ctx.fillStyle = litColor(90, 158, 75, 0, -0.5, light);
+  ctx.beginPath();
+  ctx.moveTo(-20, horizonY);
+  ctx.quadraticCurveTo(W*0.12, horizonY-H*0.08, W*0.28, horizonY);
+  ctx.quadraticCurveTo(W*0.45, horizonY-H*0.12, W*0.62, horizonY);
+  ctx.quadraticCurveTo(W*0.78, horizonY-H*0.06, W*0.9, horizonY);
+  ctx.quadraticCurveTo(W*0.95, horizonY-H*0.03, W+20, horizonY);
+  ctx.lineTo(W+20, horizonY+5); ctx.lineTo(-20, horizonY+5);
+  ctx.closePath(); ctx.fill();
+}
+
+// ============================================================
+// GROUND
+// ============================================================
+function drawGround(light) {
+  const baseG = litColor(76, 175, 80, 0, -0.3, light);
+  const darkG = litColor(46, 125, 50, 0, -0.1, light);
+  const grad = ctx.createLinearGradient(0, horizonY, 0, H);
+  grad.addColorStop(0, baseG); grad.addColorStop(1, darkG);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, horizonY, W, H - horizonY);
+
+  // Perspective grid
+  ctx.save();
+  ctx.strokeStyle = 'rgba(46,125,50,0.3)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 12; i++) {
+    const t = i / 12;
+    const y = horizonY + (H - horizonY) * (t * t);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(46,125,50,0.18)';
+  const vpX = W * 0.5;
+  for (let i = 0; i < 9; i++) {
+    const bx = (i / 8) * W;
+    ctx.beginPath(); ctx.moveTo(vpX, horizonY); ctx.lineTo(bx, H + 30); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ============================================================
+// 3D BUILDING — RAY-TRACED LIGHTING
+// ============================================================
+function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, winB, shadowDir, shadowLen, light) {
+  const scale = perspScale(baseDepth);
+  const baseY = perspY(baseDepth);
+  const sw = bw * scale;
+  const sh = bh * scale;
+  const depthOff = sw * 0.32;
+
+  // --- Ground shadow (LARGE, prominent, with gradient fade) ---
+  if (shadowLen > 0) {
+    const sLen = shadowLen * scale;
+    const x = cx - sw / 2;
+    const shadowTipY = baseY + sLen * 0.25;
+    const shadowSpread = sw * 0.15; // shadow widens at the tip
+
+    ctx.save();
+    // Dark core shadow
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#050f05';
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.lineTo(x + sw, baseY);
+    ctx.lineTo(x + sw + shadowDir * sLen + shadowSpread, shadowTipY);
+    ctx.lineTo(x + shadowDir * sLen - shadowSpread, shadowTipY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Softer outer shadow (penumbra) — slightly larger and more transparent
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = '#081808';
+    const penumbra = sw * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(x - penumbra, baseY);
+    ctx.lineTo(x + sw + penumbra, baseY);
+    ctx.lineTo(x + sw + shadowDir * sLen * 1.05 + shadowSpread * 1.6, shadowTipY + sLen * 0.06);
+    ctx.lineTo(x + shadowDir * sLen * 1.05 - shadowSpread * 1.6, shadowTipY + sLen * 0.06);
+    ctx.closePath();
+    ctx.fill();
+
+    // Gradient fade at shadow tip
+    const fadeGrad = ctx.createLinearGradient(
+      x + shadowDir * sLen * 0.5, baseY,
+      x + shadowDir * sLen, shadowTipY
+    );
+    fadeGrad.addColorStop(0, 'rgba(5,15,5,0.3)');
+    fadeGrad.addColorStop(0.7, 'rgba(5,15,5,0.15)');
+    fadeGrad.addColorStop(1, 'rgba(5,15,5,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = fadeGrad;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.lineTo(x + sw, baseY);
+    ctx.lineTo(x + sw + shadowDir * sLen * 1.1 + shadowSpread * 2, shadowTipY + sLen * 0.1);
+    ctx.lineTo(x + shadowDir * sLen * 1.1 - shadowSpread * 2, shadowTipY + sLen * 0.1);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  const x = cx - sw / 2;
+  const topY = baseY - sh;
+
+  // --- SIDE FACE (right) — lit differently based on sun direction ---
+  // Side faces right, so normalX = 1
+  const sideCol = litColor(baseR * 0.8, baseG * 0.8, baseB * 0.8, 1, 0, light);
+  ctx.fillStyle = sideCol;
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x+sw, baseY); ctx.lineTo(x+sw+depthOff, baseY-depthOff*0.5);
+  ctx.lineTo(x+sw+depthOff, topY-depthOff*0.5); ctx.lineTo(x+sw, topY);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Specular on side face
+  const sideSpec = specularHighlight(1, 0, light, 8);
+  if (sideSpec > 0.02) {
+    ctx.save(); ctx.globalAlpha = sideSpec;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(x+sw, baseY); ctx.lineTo(x+sw+depthOff, baseY-depthOff*0.5);
+    ctx.lineTo(x+sw+depthOff, topY-depthOff*0.5); ctx.lineTo(x+sw, topY);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // --- FRONT FACE — normalX roughly 0 (facing viewer) ---
+  const frontCol = litColor(baseR, baseG, baseB, -0.2, 0, light);
+  ctx.fillStyle = frontCol;
+  ctx.beginPath();
+  ctx.moveTo(x, baseY); ctx.lineTo(x+sw, baseY);
+  ctx.lineTo(x+sw, topY); ctx.lineTo(x, topY);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Front face specular
+  const frontSpec = specularHighlight(-0.2, 0, light, 12);
+  if (frontSpec > 0.02) {
+    ctx.save(); ctx.globalAlpha = frontSpec * 0.5;
+    const sg = ctx.createLinearGradient(x, topY, x, baseY);
+    sg.addColorStop(0, 'rgba(255,255,230,0.5)');
+    sg.addColorStop(0.5, 'rgba(255,255,230,0)');
+    sg.addColorStop(1, 'rgba(255,255,230,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(x, topY, sw, sh);
+    ctx.restore();
+  }
+
+  // --- TOP FACE — normalY = -1 (facing up, catches most light) ---
+  const topCol = litColor(baseR * 1.1, baseG * 1.1, baseB * 1.1, 0, -1, light);
+  ctx.fillStyle = topCol;
+  ctx.beginPath();
+  ctx.moveTo(x, topY); ctx.lineTo(x+sw, topY);
+  ctx.lineTo(x+sw+depthOff, topY-depthOff*0.5);
+  ctx.lineTo(x+depthOff, topY-depthOff*0.5);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Top face bright specular when sun is high
+  if (light.intensity > 0.5) {
+    ctx.save();
+    ctx.globalAlpha = (light.intensity - 0.5) * 0.4;
+    ctx.fillStyle = 'rgba(255,255,240,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(x, topY); ctx.lineTo(x+sw, topY);
+    ctx.lineTo(x+sw+depthOff, topY-depthOff*0.5);
+    ctx.lineTo(x+depthOff, topY-depthOff*0.5);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // --- WINDOWS (front face, reflect light) ---
+  const cols = 2;
+  const rows = Math.max(2, Math.floor(sh / (32 * scale)));
+  const winW = sw * 0.2; const winH = sh * 0.1;
+  const gapX = (sw - cols * winW) / (cols + 1);
+  const gapY = (sh - 14 * scale - rows * winH) / (rows + 1);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const wx = x + gapX + c * (winW + gapX);
+      const wy = topY + 10 * scale + gapY + r * (winH + gapY);
+
+      // Window lit by sun — glass reflects light
+      const winLit = litColor(winR, winG, winB, -0.2, 0, light);
+      ctx.fillStyle = winLit;
+      ctx.fillRect(wx, wy, winW, winH);
+
+      // Window specular reflection (glass is shiny)
+      const winSpec = specularHighlight(-0.2, 0.3, light, 20);
+      if (winSpec > 0.03) {
+        ctx.save();
+        ctx.globalAlpha = winSpec * 1.5;
+        const wg = ctx.createLinearGradient(wx, wy, wx + winW, wy + winH);
+        wg.addColorStop(0, 'rgba(255,255,200,0.9)');
+        wg.addColorStop(0.5, 'rgba(255,255,255,0.4)');
+        wg.addColorStop(1, 'rgba(255,255,200,0)');
+        ctx.fillStyle = wg;
+        ctx.fillRect(wx, wy, winW, winH);
+        ctx.restore();
+      }
+
+      // Window frame
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(wx+winW/2, wy); ctx.lineTo(wx+winW/2, wy+winH);
+      ctx.moveTo(wx, wy+winH/2); ctx.lineTo(wx+winW, wy+winH/2);
+      ctx.stroke();
+    }
+  }
+
+  // --- DOOR ---
+  if (sh > 60) {
+    const dw = sw * 0.16; const dh = sh * 0.14;
+    ctx.fillStyle = litColor(78, 52, 46, -0.2, 0, light);
+    ctx.fillRect(cx - dw/2, baseY - dh, dw, dh);
+    ctx.fillStyle = '#FFD54F';
+    ctx.beginPath(); ctx.arc(cx + dw * 0.25, baseY - dh * 0.45, 2 * scale, 0, Math.PI*2); ctx.fill();
+  }
+
+  // --- Shape label ---
+  ctx.save();
+  ctx.font = 'bold ' + Math.max(9, 11*scale) + 'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 2.5;
+  const ly = topY - depthOff * 0.5 - 8 * scale;
+  ctx.strokeText('Rectangular Prism', cx + depthOff/2, ly);
+  ctx.fillText('Rectangular Prism', cx + depthOff/2, ly);
+  ctx.restore();
+}
+
+// ============================================================
+// 3D TREE — RAY-TRACED LIGHTING
+// ============================================================
+
+function draw3DCone(cx, tipY, baseY, radius, r, g, b, light) {
+  // Elliptical base
+  ctx.fillStyle = litColor(r*0.6, g*0.6, b*0.6, 0, 0.5, light);
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY, radius, radius*0.3, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Cone body — lit side vs shadow side
+  // Left half
+  const leftCol = litColor(r, g, b, -0.7, -0.3, light);
+  ctx.fillStyle = leftCol;
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY); ctx.lineTo(cx - radius, baseY); ctx.lineTo(cx, baseY);
+  ctx.closePath(); ctx.fill();
+
+  // Right half
+  const rightCol = litColor(r, g, b, 0.7, -0.3, light);
+  ctx.fillStyle = rightCol;
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY); ctx.lineTo(cx, baseY); ctx.lineTo(cx + radius, baseY);
+  ctx.closePath(); ctx.fill();
+
+  // Specular highlight on lit side
+  const spec = specularHighlight(light.sunNormX > 0 ? -0.5 : 0.5, -0.3, light, 6);
+  if (spec > 0.02) {
+    ctx.save(); ctx.globalAlpha = spec;
+    ctx.fillStyle = 'rgba(255,255,230,0.7)';
+    const highlightX = light.sunNormX > 0 ? cx - radius * 0.3 : cx + radius * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(cx, tipY);
+    ctx.lineTo(highlightX - radius * 0.15, baseY);
+    ctx.lineTo(highlightX + radius * 0.15, baseY);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function draw3DCylinder(cx, topY, botY, radius, r, g, b, light) {
+  const ellipseH = radius * 0.35;
+
+  // Body with lighting gradient (left-to-right shading)
+  const bodyGrad = ctx.createLinearGradient(cx - radius, 0, cx + radius, 0);
+  const leftLit = litColor(r, g, b, -1, 0, light);
+  const centerLit = litColor(r*1.05, g*1.05, b*1.05, 0, 0, light);
+  const rightLit = litColor(r, g, b, 1, 0, light);
+  bodyGrad.addColorStop(0, leftLit);
+  bodyGrad.addColorStop(0.4, centerLit);
+  bodyGrad.addColorStop(1, rightLit);
+  ctx.fillStyle = bodyGrad;
+  ctx.fillRect(cx - radius, topY, radius * 2, botY - topY);
+
+  // Specular highlight stripe
+  const spec = specularHighlight(light.sunNormX > 0 ? -0.5 : 0.5, 0, light, 10);
+  if (spec > 0.02) {
+    ctx.save(); ctx.globalAlpha = spec * 0.8;
+    const hx = light.sunNormX > 0 ? cx - radius * 0.3 : cx + radius * 0.3;
+    const sg = ctx.createLinearGradient(hx - radius * 0.2, 0, hx + radius * 0.2, 0);
+    sg.addColorStop(0, 'rgba(255,255,230,0)');
+    sg.addColorStop(0.5, 'rgba(255,255,230,0.7)');
+    sg.addColorStop(1, 'rgba(255,255,230,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(hx - radius * 0.2, topY, radius * 0.4, botY - topY);
+    ctx.restore();
+  }
+
+  // Bottom ellipse
+  ctx.fillStyle = litColor(r*0.7, g*0.7, b*0.7, 0, 0.5, light);
+  ctx.beginPath(); ctx.ellipse(cx, botY, radius, ellipseH, 0, 0, Math.PI*2); ctx.fill();
+
+  // Top ellipse
+  ctx.fillStyle = litColor(r*1.1, g*1.1, b*1.1, 0, -1, light);
+  ctx.beginPath(); ctx.ellipse(cx, topY, radius, ellipseH, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function draw3DSphere(cx, cy, radius, r, g, b, light) {
+  // Gradient from lit side to shadow side
+  const lightOffX = light.sunNormX > 0 ? -0.35 : 0.35;
+  const grad = ctx.createRadialGradient(
+    cx + lightOffX * radius, cy - radius * 0.3, radius * 0.05,
+    cx, cy, radius
+  );
+
+  const highlightCol = litColor(Math.min(255, r+60), Math.min(255, g+60), Math.min(255, b+50), 0, -1, light);
+  const midCol = litColor(r, g, b, 0, -0.3, light);
+  const shadowCol = litColor(r*0.5, g*0.5, b*0.5, 0, 0.3, light);
+
+  grad.addColorStop(0, highlightCol);
+  grad.addColorStop(0.5, midCol);
+  grad.addColorStop(1, shadowCol);
+
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2); ctx.fill();
+
+  // Specular highlight dot
+  const specX = cx + lightOffX * radius * 0.7;
+  const specY = cy - radius * 0.4;
+  const specR = radius * 0.18;
+  ctx.fillStyle = 'rgba(255,255,255,' + (0.15 + light.intensity * 0.35) + ')';
+  ctx.beginPath();
+  ctx.ellipse(specX, specY, specR, specR * 0.7, -0.5, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
+  const scale = perspScale(baseDepth);
+  const baseY = perspY(baseDepth);
+
+  const trunkR = 5 * scale;
+  const trunkH = 32 * scale;
+  const canopyR = 20 * scale;
+
+  // Ground shadow (LARGE, prominent)
+  if (shadowLen > 0) {
+    const sLen = shadowLen * scale * 0.85;
+    const shadowTipY = baseY + sLen * 0.2;
+
+    ctx.save();
+
+    // Trunk shadow — dark trapezoid stretching along ground
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#050f05';
+    ctx.beginPath();
+    ctx.moveTo(cx - trunkR, baseY);
+    ctx.lineTo(cx + trunkR, baseY);
+    ctx.lineTo(cx + trunkR + shadowDir * sLen * 0.4, baseY + sLen * 0.12);
+    ctx.lineTo(cx - trunkR + shadowDir * sLen * 0.4, baseY + sLen * 0.12);
+    ctx.closePath();
+    ctx.fill();
+
+    // Canopy shadow — large dark ellipse on the ground
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#050f05';
+    ctx.beginPath();
+    ctx.ellipse(
+      cx + shadowDir * sLen * 0.6,
+      baseY + sLen * 0.15,
+      canopyR * 1.2,
+      canopyR * 0.35,
+      0, 0, Math.PI * 2
+    );
+    ctx.fill();
+
+    // Penumbra (soft outer edge)
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#081808';
+    ctx.beginPath();
+    ctx.ellipse(
+      cx + shadowDir * sLen * 0.6,
+      baseY + sLen * 0.15,
+      canopyR * 1.6,
+      canopyR * 0.5,
+      0, 0, Math.PI * 2
+    );
+    ctx.fill();
+
+    // Gradient fade connecting trunk to canopy shadow
+    const fadeGrad = ctx.createLinearGradient(
+      cx, baseY,
+      cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15
+    );
+    fadeGrad.addColorStop(0, 'rgba(5,15,5,0.25)');
+    fadeGrad.addColorStop(1, 'rgba(5,15,5,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = fadeGrad;
+    ctx.beginPath();
+    ctx.moveTo(cx - trunkR * 2, baseY);
+    ctx.lineTo(cx + trunkR * 2, baseY);
+    ctx.lineTo(cx + shadowDir * sLen * 0.7 + canopyR, baseY + sLen * 0.18);
+    ctx.lineTo(cx + shadowDir * sLen * 0.7 - canopyR, baseY + sLen * 0.18);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Trunk (Cylinder)
+  const trunkTopY = baseY - trunkH;
+  draw3DCylinder(cx, trunkTopY, baseY, trunkR, 109, 76, 65, light);
+
+  if (type === 'round') {
+    const canopyCY = trunkTopY - canopyR * 0.55;
+    draw3DSphere(cx, canopyCY, canopyR, 56, 142, 60, light);
+
+    ctx.save();
+    ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
+    ctx.strokeText('Sphere', cx, canopyCY-canopyR-5*scale);
+    ctx.fillText('Sphere', cx, canopyCY-canopyR-5*scale);
+    ctx.restore();
+  } else {
+    const coneBaseY = trunkTopY + 2 * scale;
+    const coneTipY = trunkTopY - canopyR * 1.6;
+    draw3DCone(cx, coneTipY, coneBaseY, canopyR, 46, 125, 50, light);
+    const c2BaseY = coneTipY + (coneBaseY-coneTipY)*0.45;
+    const c2TipY = coneTipY - canopyR*0.5;
+    draw3DCone(cx, c2TipY, c2BaseY, canopyR*0.65, 56, 142, 60, light);
+
+    ctx.save();
+    ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
+    ctx.strokeText('Cone', cx, c2TipY-5*scale);
+    ctx.fillText('Cone', cx, c2TipY-5*scale);
+    ctx.restore();
+  }
+
+  // Cylinder label
+  ctx.save();
+  ctx.font = Math.max(7,8*scale)+'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.5;
+  ctx.strokeText('Cylinder', cx, (trunkTopY+baseY)/2);
+  ctx.fillText('Cylinder', cx, (trunkTopY+baseY)/2);
+  ctx.restore();
+}
+
+// ============================================================
+// SUN
+// ============================================================
+function drawSun(sx, sy) {
+  const r = Math.min(W,H)*0.042;
+  const glow = ctx.createRadialGradient(sx,sy,r*0.5,sx,sy,r*3.5);
+  glow.addColorStop(0,'rgba(255,240,100,0.5)');
+  glow.addColorStop(0.5,'rgba(255,200,50,0.15)');
+  glow.addColorStop(1,'rgba(255,200,50,0)');
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(sx,sy,r*3.5,0,Math.PI*2); ctx.fill();
+
+  ctx.save(); ctx.translate(sx,sy);
+  ctx.strokeStyle='rgba(255,230,80,0.5)'; ctx.lineWidth=2.5;
+  const t=Date.now()/3000;
+  for(let i=0;i<12;i++){
+    const a=(i/12)*Math.PI*2+t;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*r*1.3,Math.sin(a)*r*1.3);
+    ctx.lineTo(Math.cos(a)*(r*1.8+Math.sin(t*2+i)*3),Math.sin(a)*(r*1.8+Math.sin(t*2+i)*3));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const sg=ctx.createRadialGradient(sx-r*0.25,sy-r*0.25,r*0.1,sx,sy,r);
+  sg.addColorStop(0,'#FFF9C4'); sg.addColorStop(0.4,'#FFE082'); sg.addColorStop(1,'#FFA726');
+  ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath(); ctx.ellipse(sx-r*0.2,sy-r*0.25,r*0.35,r*0.2,-0.4,0,Math.PI*2); ctx.fill();
+
+  if(!dragging){
+    ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.arc(sx,sy,r+8,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+// ============================================================
+// LABELS & ARC GUIDE
+// ============================================================
+function drawLabels() {
+  ctx.font='bold '+Math.max(14,W*0.022)+'px Segoe UI, sans-serif';
+  ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.fillText('East',W*0.06,horizonY-10);
+  ctx.font=Math.max(10,W*0.014)+'px Segoe UI, sans-serif';
+  ctx.fillStyle='rgba(255,255,255,0.6)';
+  ctx.fillText('(Sunrise)',W*0.06,horizonY+8);
+
+  ctx.font='bold '+Math.max(14,W*0.022)+'px Segoe UI, sans-serif';
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.fillText('West',W*0.94,horizonY-10);
+  ctx.font=Math.max(10,W*0.014)+'px Segoe UI, sans-serif';
+  ctx.fillStyle='rgba(255,255,255,0.6)';
+  ctx.fillText('(Sunset)',W*0.94,horizonY+8);
+}
+
+function drawArcGuide() {
+  ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1.5; ctx.setLineDash([8,8]);
+  ctx.beginPath();
+  for(let a=0.05;a<=Math.PI-0.05;a+=0.05){
+    const p=getSunPos(a); if(a<0.1)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);
+  }
+  ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+}
+
+// ============================================================
+// MAIN DRAW
+// ============================================================
+function draw() {
+  ctx.clearRect(0,0,W,H);
+
+  const sunPos = getSunPos(sunAngle);
+  const {timeStr,period,hours} = getTimeFromAngle(sunAngle);
+  const {shadowDir,shadowLen} = getShadowParams(sunAngle);
+  const light = getLightInfo(sunPos);
+
+  // Sky
+  ctx.fillStyle = getSkyGradient(sunAngle);
+  ctx.fillRect(0, 0, W, horizonY);
+
+  // Arc guide
+  drawArcGuide();
+
+  // Sun rays (behind clouds, in sky)
+  drawSunRays(sunPos, light);
+
+  // Clouds (lit by sun)
+  drawCloud(W*0.18, H*0.12, 1.2, light);
+  drawCloud(W*0.52, H*0.08, 0.9, light);
+  drawCloud(W*0.82, H*0.15, 1.0, light);
+
+  // Sun
+  drawSun(sunPos.x, sunPos.y);
+
+  // Hills
+  drawHills(light);
+
+  // Ground
+  drawGround(light);
+
+  // Labels
+  drawLabels();
+
+  // --- Scene objects (back to front) ---
+  draw3DTree(W*0.1, 0.15, 'pine', shadowDir, shadowLen, light);
+  draw3DTree(W*0.9, 0.15, 'pine', shadowDir, shadowLen, light);
+
+  draw3DBuilding(W*0.32, 0.32, 70, 140, 232,141,79, 255,224,178, shadowDir, shadowLen, light);
+  draw3DBuilding(W*0.52, 0.35, 80, 190, 91,141,190, 187,222,251, shadowDir, shadowLen, light);
+  draw3DBuilding(W*0.70, 0.33, 65, 120, 229,115,115, 255,205,210, shadowDir, shadowLen, light);
+
+  draw3DTree(W*0.20, 0.38, 'round', shadowDir, shadowLen, light);
+  draw3DTree(W*0.83, 0.38, 'round', shadowDir, shadowLen, light);
+
+  draw3DTree(W*0.06, 0.62, 'pine', shadowDir, shadowLen, light);
+  draw3DTree(W*0.40, 0.58, 'round', shadowDir, shadowLen, light);
+  draw3DTree(W*0.60, 0.60, 'pine', shadowDir, shadowLen, light);
+  draw3DTree(W*0.95, 0.63, 'round', shadowDir, shadowLen, light);
+
+  // UI
+  timeLabel.textContent = timeStr + ' — ' + period;
+  observationBox.innerHTML = getObservation(sunAngle, hours);
+}
+
+// ============================================================
+// INTERACTION
+// ============================================================
+function angleFromPointer(px,py){
+  const dx=px-arcCX, dy=py-arcCY;
+  let a=Math.atan2(-dy/arcRY,-dx/arcRX);
+  if(a<0.05)a=0.05; if(a>Math.PI-0.05)a=Math.PI-0.05;
+  return a;
+}
+function isNearSun(px,py){
+  const s=getSunPos(sunAngle), dx=px-s.x, dy=py-s.y, hr=Math.min(W,H)*0.07;
+  return dx*dx+dy*dy<hr*hr;
+}
+
+canvas.addEventListener('mousedown',e=>{if(isNearSun(e.clientX,e.clientY)){dragging=true;instructionsEl.style.opacity='0';draw();}});
+window.addEventListener('mousemove',e=>{if(dragging){sunAngle=angleFromPointer(e.clientX,e.clientY);draw();}});
+window.addEventListener('mouseup',()=>{dragging=false;});
+
+canvas.addEventListener('touchstart',e=>{const t=e.touches[0];if(isNearSun(t.clientX,t.clientY)){dragging=true;instructionsEl.style.opacity='0';e.preventDefault();draw();}},{passive:false});
+window.addEventListener('touchmove',e=>{if(dragging){const t=e.touches[0];sunAngle=angleFromPointer(t.clientX,t.clientY);draw();e.preventDefault();}},{passive:false});
+window.addEventListener('touchend',()=>{dragging=false;});
+
+function animate(){draw();requestAnimationFrame(animate);}
+setTimeout(()=>{instructionsEl.style.opacity='0';},5000);
+animate();
+</script>
+</body>
+</html>
