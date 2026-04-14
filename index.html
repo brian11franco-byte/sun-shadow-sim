@@ -1024,39 +1024,90 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
   const trunkH = 62 * scale;
   const canopyR = 38 * scale;
 
-  // Ground shadow
+  // Ground shadow — shape depends on canopy type
   if (shadowLen > 0) {
     const sLen = shadowLen * scale * 0.85;
     ctx.save();
+
+    // ── Trunk shadow (same for both tree types) ──
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = '#050f05';
     ctx.beginPath();
     ctx.moveTo(cx - trunkR, baseY); ctx.lineTo(cx + trunkR, baseY);
-    ctx.lineTo(cx + trunkR + shadowDir * sLen * 0.4, baseY + sLen * 0.12);
-    ctx.lineTo(cx - trunkR + shadowDir * sLen * 0.4, baseY + sLen * 0.12);
+    ctx.lineTo(cx + trunkR + shadowDir * sLen * 0.35, baseY + sLen * 0.1);
+    ctx.lineTo(cx - trunkR + shadowDir * sLen * 0.35, baseY + sLen * 0.1);
     ctx.closePath(); ctx.fill();
 
-    ctx.globalAlpha = 0.4;
-    ctx.beginPath();
-    ctx.ellipse(cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15, canopyR * 1.2, canopyR * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if (type === 'round') {
+      // ── SPHERE canopy: elliptical shadow ──
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = '#050f05';
+      ctx.beginPath();
+      ctx.ellipse(cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15, canopyR * 1.2, canopyR * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-    ctx.globalAlpha = 0.15;
-    ctx.fillStyle = '#081808';
-    ctx.beginPath();
-    ctx.ellipse(cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15, canopyR * 1.6, canopyR * 0.5, 0, 0, Math.PI * 2);
-    ctx.fill();
+      // Penumbra ring (ellipse, slightly larger)
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = '#081808';
+      ctx.beginPath();
+      ctx.ellipse(cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15, canopyR * 1.6, canopyR * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-    const fadeGrad = ctx.createLinearGradient(cx, baseY, cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15);
-    fadeGrad.addColorStop(0, 'rgba(5,15,5,0.25)');
-    fadeGrad.addColorStop(1, 'rgba(5,15,5,0)');
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = fadeGrad;
-    ctx.beginPath();
-    ctx.moveTo(cx - trunkR * 2, baseY); ctx.lineTo(cx + trunkR * 2, baseY);
-    ctx.lineTo(cx + shadowDir * sLen * 0.7 + canopyR, baseY + sLen * 0.18);
-    ctx.lineTo(cx + shadowDir * sLen * 0.7 - canopyR, baseY + sLen * 0.18);
-    ctx.closePath(); ctx.fill();
+      // Gradient fade
+      const fadeGradR = ctx.createLinearGradient(cx, baseY, cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15);
+      fadeGradR.addColorStop(0, 'rgba(5,15,5,0.25)');
+      fadeGradR.addColorStop(1, 'rgba(5,15,5,0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = fadeGradR;
+      ctx.beginPath();
+      ctx.moveTo(cx - trunkR * 2, baseY); ctx.lineTo(cx + trunkR * 2, baseY);
+      ctx.lineTo(cx + shadowDir * sLen * 0.7 + canopyR, baseY + sLen * 0.18);
+      ctx.lineTo(cx + shadowDir * sLen * 0.7 - canopyR, baseY + sLen * 0.18);
+      ctx.closePath(); ctx.fill();
+
+    } else {
+      // ── CONE canopy (pine): pointed triangular shadow ──
+      // A cone's shadow tapers to a point — the apex casts a single shadow tip.
+      // The wide base of the shadow starts at the canopy base (≈ trunk top).
+      const tipX  = cx + shadowDir * sLen * 1.05;
+      const tipSY = baseY + sLen * 0.24;       // perspective depth of the tip
+      const baseHW = canopyR * 0.9;            // half-width at shadow base
+
+      // Core umbra — triangle wide at base, point at tip
+      ctx.globalAlpha = 0.44;
+      ctx.fillStyle = '#050f05';
+      ctx.beginPath();
+      ctx.moveTo(cx - baseHW, baseY);
+      ctx.lineTo(cx + baseHW, baseY);
+      ctx.lineTo(tipX, tipSY);
+      ctx.closePath(); ctx.fill();
+
+      // Penumbra — slightly wider triangle, barely transparent
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#081808';
+      ctx.beginPath();
+      ctx.moveTo(cx - baseHW * 1.35, baseY);
+      ctx.lineTo(cx + baseHW * 1.35, baseY);
+      ctx.lineTo(tipX + shadowDir * sLen * 0.04, tipSY + sLen * 0.04);
+      ctx.closePath(); ctx.fill();
+
+      // Gradient fade: dense at base, dissolves at pointed tip
+      const fadeGradC = ctx.createLinearGradient(
+        cx, baseY,
+        tipX, tipSY
+      );
+      fadeGradC.addColorStop(0,   'rgba(5,15,5,0.28)');
+      fadeGradC.addColorStop(0.65,'rgba(5,15,5,0.12)');
+      fadeGradC.addColorStop(1,   'rgba(5,15,5,0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = fadeGradC;
+      ctx.beginPath();
+      ctx.moveTo(cx - baseHW * 1.1, baseY);
+      ctx.lineTo(cx + baseHW * 1.1, baseY);
+      ctx.lineTo(tipX + shadowDir * sLen * 0.06, tipSY + sLen * 0.06);
+      ctx.closePath(); ctx.fill();
+    }
+
     ctx.restore();
   }
 
@@ -1256,8 +1307,50 @@ function drawPyramid(cx, baseDepth, size, r, g, b, shadowDir, shadowLen, light) 
   const depthOff = bw * 0.4;     // 3D depth offset
   const tipY = baseY - ph;
 
-  // Shadow
-  drawGroundShadow(cx, baseY, bw * 2.2, shadowDir, shadowLen * 0.85, scale);
+  // Shadow — pyramid apex casts a single point, so shadow tapers to a point
+  if (shadowLen > 0) {
+    const sLen = shadowLen * scale * 0.85;
+    const tipX  = cx + shadowDir * sLen;
+    const tipSY = baseY + sLen * 0.22;
+
+    ctx.save();
+
+    // Core umbra: wide at pyramid base, narrows to a pointed tip
+    ctx.globalAlpha = 0.44;
+    ctx.fillStyle = '#050f05';
+    ctx.beginPath();
+    ctx.moveTo(cx - bw,      baseY);
+    ctx.lineTo(cx + bw,      baseY);
+    ctx.lineTo(tipX,         tipSY);
+    ctx.closePath(); ctx.fill();
+
+    // Penumbra: slightly wider triangle
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#081808';
+    ctx.beginPath();
+    ctx.moveTo(cx - bw * 1.3, baseY);
+    ctx.lineTo(cx + bw * 1.3, baseY);
+    ctx.lineTo(tipX + shadowDir * sLen * 0.04, tipSY + sLen * 0.04);
+    ctx.closePath(); ctx.fill();
+
+    // Gradient fade: dense near base, dissolves at tip
+    const pyrFade = ctx.createLinearGradient(
+      cx + shadowDir * sLen * 0.25, baseY,
+      tipX, tipSY
+    );
+    pyrFade.addColorStop(0,    'rgba(5,15,5,0.28)');
+    pyrFade.addColorStop(0.65, 'rgba(5,15,5,0.12)');
+    pyrFade.addColorStop(1,    'rgba(5,15,5,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = pyrFade;
+    ctx.beginPath();
+    ctx.moveTo(cx - bw * 1.15, baseY);
+    ctx.lineTo(cx + bw * 1.15, baseY);
+    ctx.lineTo(tipX + shadowDir * sLen * 0.06, tipSY + sLen * 0.06);
+    ctx.closePath(); ctx.fill();
+
+    ctx.restore();
+  }
 
   // Base front edge Y
   const baseFrontY = baseY;
