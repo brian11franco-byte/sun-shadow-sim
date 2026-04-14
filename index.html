@@ -71,9 +71,9 @@ function resize() {
   canvas.width = W * dpr; canvas.height = H * dpr;
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  horizonY = H * 0.52;
+  horizonY = H * 0.46;
   arcCX = W / 2; arcCY = horizonY;
-  arcRX = W * 0.44; arcRY = H * 0.42;
+  arcRX = W * 0.44; arcRY = H * 0.40;
 }
 resize();
 window.addEventListener('resize', () => { resize(); draw(); });
@@ -175,22 +175,24 @@ function specularHighlight(normalX, normalY, light, shininess) {
 
 function getShadowParams(angle) {
   const sunH = Math.sin(angle);
-  // MUCH larger shadows — max extends almost half the screen width
-  const maxLen = W * 0.45;
-  // Steeper curve: shadows grow dramatically as sun gets lower
-  // At noon (sunH≈1): very short. At sunrise/sunset (sunH≈0): extremely long
-  let sLen;
-  if (sunH < 0.03) {
-    sLen = maxLen;
-  } else {
-    // Using a power curve for more dramatic length changes
-    const heightFactor = Math.pow(1 - sunH, 2.2) / Math.pow(sunH, 0.8);
-    sLen = maxLen * heightFactor * 0.45;
-  }
-  sLen = Math.min(sLen, maxLen);
-  // Even at noon, keep a tiny visible shadow so students see it never fully disappears
-  sLen = Math.max(sLen, W * 0.015);
-  const sDir = angle < Math.PI / 2 ? 1 : -1;
+  const maxLen = W * 0.55;
+
+  // Physically-based cotangent formula: shadow/height = cos(elev)/sin(elev)
+  // This gives smooth, continuous movement across the WHOLE day,
+  // including the 10am–2pm window where the old power-curve stalled.
+  const cosH = Math.sqrt(Math.max(0, 1 - sunH * sunH));
+  const cot = cosH / Math.max(0.13, sunH); // clamp prevents infinity at horizon
+
+  // Scale to screen: cot≈8 at 6am (full length) → 0 at noon (minimum)
+  let sLen = maxLen * Math.min(1, cot * 0.46);
+  sLen = Math.max(sLen, W * 0.012); // tiny but visible at noon
+
+  // cos(angle) naturally equals:
+  //   +1 at sunrise (angle=0)   → shadow points east (right)
+  //    0 at noon    (angle=π/2) → shadow falls straight under the object
+  //   -1 at sunset  (angle=π)   → shadow points west (left)
+  // This removes the hard binary switch and makes direction fluid all day.
+  const sDir = Math.cos(angle);
   return { shadowDir: sDir, shadowLen: sLen };
 }
 
@@ -198,7 +200,7 @@ function getShadowParams(angle) {
 // PERSPECTIVE
 // ============================================================
 function perspY(depth) { return horizonY + (H - horizonY) * depth; }
-function perspScale(depth) { return 0.35 + depth * 0.65; }
+function perspScale(depth) { return 0.30 + depth * 0.85; }
 
 // ============================================================
 // SKY
@@ -281,13 +283,23 @@ function drawCloud(cx, cy, scale, light) {
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
 
-  // Cloud lit by sun — brighter on sun-facing side
+  // Warm tint strength: peaks at sunrise/sunset, neutral at midday
+  const w = light.warmth; // 0 = midday neutral, 1 = golden hour warmth
+
+  // Top highlight (lit side): warm gold/pink at golden hour, bright white at noon
+  const tR = Math.min(255, 248 + w * 7);
+  const tG = Math.min(255, 230 + w * 5 - w * 40);  // slightly desaturated green at dusk
+  const tB = Math.min(255, 220 - w * 80);           // drops blue for warm tone
+
+  // Bottom shadow: deep lavender/purple at dusk, grey at midday
+  const bR = Math.min(255, 195 + w * 40);
+  const bG = Math.min(255, 190 - w * 20);
+  const bB = Math.min(255, 200 - w * 60);
+
   const litSide = light.sunNormX > 0 ? -1 : 1;
-  const cloudGrad = ctx.createLinearGradient(litSide * -40, -15, litSide * 40, 10);
-  const bright = Math.round(245 + light.intensity * 10);
-  const dark = Math.round(200 + light.intensity * 20);
-  cloudGrad.addColorStop(0, 'rgba('+bright+','+bright+','+(bright-10)+',0.9)');
-  cloudGrad.addColorStop(1, 'rgba('+dark+','+(dark-5)+','+(dark-15)+',0.75)');
+  const cloudGrad = ctx.createLinearGradient(litSide * -40, -18, litSide * 40, 12);
+  cloudGrad.addColorStop(0, 'rgba('+Math.round(tR)+','+Math.round(tG)+','+Math.round(tB)+',0.92)');
+  cloudGrad.addColorStop(1, 'rgba('+Math.round(bR)+','+Math.round(bG)+','+Math.round(bB)+',0.78)');
 
   ctx.fillStyle = cloudGrad;
   ctx.beginPath();
@@ -646,9 +658,9 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
   const scale = perspScale(baseDepth);
   const baseY = perspY(baseDepth);
 
-  const trunkR = 5 * scale;
-  const trunkH = 32 * scale;
-  const canopyR = 20 * scale;
+  const trunkR = 9 * scale;
+  const trunkH = 62 * scale;
+  const canopyR = 38 * scale;
 
   // Ground shadow (LARGE, prominent)
   if (shadowLen > 0) {
@@ -845,10 +857,14 @@ function draw() {
   // Sun rays (behind clouds, in sky)
   drawSunRays(sunPos, light);
 
-  // Clouds (lit by sun)
-  drawCloud(W*0.18, H*0.12, 1.2, light);
-  drawCloud(W*0.52, H*0.08, 0.9, light);
-  drawCloud(W*0.82, H*0.15, 1.0, light);
+  // Clouds drift westward (left to right) as sun moves across the sky
+  // sunAngle: 0 = sunrise, π/2 = noon, π = sunset
+  const cloudDrift = (sunAngle / Math.PI - 0.5) * W * 0.14;
+  // Clouds also rise slightly toward noon, lower at dawn/dusk
+  const cloudRise = (1 - light.intensity) * H * 0.04;
+  drawCloud(W*0.18 + cloudDrift * 0.9, H*0.12 + cloudRise, 1.2, light);
+  drawCloud(W*0.52 + cloudDrift * 1.0, H*0.08 + cloudRise * 0.7, 0.9, light);
+  drawCloud(W*0.82 + cloudDrift * 1.1, H*0.15 + cloudRise * 0.9, 1.0, light);
 
   // Sun
   drawSun(sunPos.x, sunPos.y);
@@ -866,9 +882,9 @@ function draw() {
   draw3DTree(W*0.1, 0.15, 'pine', shadowDir, shadowLen, light);
   draw3DTree(W*0.9, 0.15, 'pine', shadowDir, shadowLen, light);
 
-  draw3DBuilding(W*0.32, 0.32, 70, 140, 232,141,79, 255,224,178, shadowDir, shadowLen, light);
-  draw3DBuilding(W*0.52, 0.35, 80, 190, 91,141,190, 187,222,251, shadowDir, shadowLen, light);
-  draw3DBuilding(W*0.70, 0.33, 65, 120, 229,115,115, 255,205,210, shadowDir, shadowLen, light);
+  draw3DBuilding(W*0.30, 0.35, 125, 260, 232,141,79, 255,224,178, shadowDir, shadowLen, light);
+  draw3DBuilding(W*0.52, 0.40, 150, 360, 91,141,190, 187,222,251, shadowDir, shadowLen, light);
+  draw3DBuilding(W*0.72, 0.36, 110, 220, 229,115,115, 255,205,210, shadowDir, shadowLen, light);
 
   draw3DTree(W*0.20, 0.38, 'round', shadowDir, shadowLen, light);
   draw3DTree(W*0.83, 0.38, 'round', shadowDir, shadowLen, light);
