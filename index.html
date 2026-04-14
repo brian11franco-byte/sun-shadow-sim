@@ -40,20 +40,233 @@
     border-radius: 12px; font-size: clamp(12px, 2.5vw, 16px);
     z-index: 10; pointer-events: none; transition: opacity 1.5s; text-align: center;
   }
+
+  /* ── Hamburger Menu ── */
+  #hamburger {
+    position: fixed; top: 14px; right: 14px; z-index: 30;
+    width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(0,0,0,0.45); border: none; cursor: pointer;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 5px; padding: 0; transition: background 0.2s;
+  }
+  #hamburger:hover { background: rgba(0,0,0,0.6); }
+  #hamburger span {
+    display: block; width: 22px; height: 2.5px; background: #fff;
+    border-radius: 2px; transition: transform 0.3s, opacity 0.3s;
+  }
+  #hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+  #hamburger.open span:nth-child(2) { opacity: 0; }
+  #hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+
+  /* ── Collapsible Panel ── */
+  #controlPanel {
+    position: fixed; top: 68px; right: 14px; z-index: 25;
+    width: 280px; max-width: calc(100vw - 28px);
+    background: rgba(15,15,30,0.88); color: #fff;
+    border-radius: 16px; padding: 0; overflow: hidden;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    transform: translateX(calc(100% + 20px)); opacity: 0;
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.3s;
+    pointer-events: none;
+  }
+  #controlPanel.open {
+    transform: translateX(0); opacity: 1; pointer-events: auto;
+  }
+  #controlPanel .panel-header {
+    padding: 16px 18px 10px; font-size: 15px; font-weight: 700;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    letter-spacing: 0.3px;
+  }
+  #controlPanel .panel-section {
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  #controlPanel .panel-section:last-child { border-bottom: none; }
+  #controlPanel label {
+    display: block; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: rgba(255,255,255,0.55); margin-bottom: 8px;
+  }
+
+  /* ── Time Slider ── */
+  #timeSlider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 3px;
+    background: rgba(255,255,255,0.15); outline: none;
+    cursor: pointer;
+  }
+  #timeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #FFD54F; border: 2px solid rgba(255,255,255,0.8);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer;
+    transition: transform 0.15s;
+  }
+  #timeSlider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  #timeSlider::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #FFD54F; border: 2px solid rgba(255,255,255,0.8);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer;
+  }
+  #sliderTimeDisplay {
+    text-align: center; font-size: 18px; font-weight: 700;
+    margin-top: 6px; color: #FFD54F;
+  }
+
+  /* ── Object Toggle ── */
+  .obj-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0; font-size: 13px;
+  }
+  .obj-toggle .toggle-label { color: rgba(255,255,255,0.85); }
+  .toggle-switch {
+    position: relative; width: 40px; height: 22px;
+    background: rgba(255,255,255,0.15); border-radius: 11px;
+    cursor: pointer; transition: background 0.2s; border: none; padding: 0;
+  }
+  .toggle-switch.on { background: rgba(76,175,80,0.7); }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .toggle-switch.on::after { transform: translateX(18px); }
+
+  /* ── Auto-play button ── */
+  #autoPlayBtn {
+    width: 100%; padding: 10px; border: none; border-radius: 10px;
+    background: rgba(255,255,255,0.1); color: #fff; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: background 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  #autoPlayBtn:hover { background: rgba(255,255,255,0.18); }
+  #autoPlayBtn.playing { background: rgba(229,115,115,0.35); }
+
+  /* ── Add Object Controls ── */
+  .add-obj-row {
+    display: flex; gap: 8px; margin-bottom: 8px;
+  }
+  #shapeSelect {
+    flex: 1; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; background: rgba(255,255,255,0.08); color: #fff;
+    font-size: 12px; font-family: inherit; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+    padding-right: 28px;
+  }
+  #shapeSelect option { background: #1a1a2e; color: #fff; }
+  #addObjBtn {
+    padding: 8px 14px; border: none; border-radius: 8px;
+    background: rgba(76,175,80,0.5); color: #fff; font-size: 12px;
+    font-weight: 700; cursor: pointer; transition: background 0.2s;
+    white-space: nowrap;
+  }
+  #addObjBtn:hover { background: rgba(76,175,80,0.7); }
+
+  /* ── User objects list ── */
+  #userObjList {
+    max-height: 120px; overflow-y: auto; margin-top: 6px;
+  }
+  .user-obj-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 0; font-size: 12px; color: rgba(255,255,255,0.8);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .user-obj-item:last-child { border-bottom: none; }
+  .remove-obj-btn {
+    background: none; border: none; color: rgba(229,115,115,0.8);
+    cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .remove-obj-btn:hover { background: rgba(229,115,115,0.15); }
+  .user-obj-count {
+    font-size: 10px; color: rgba(255,255,255,0.4);
+    text-align: center; margin-top: 4px;
+  }
+
+  /* ── Panel scrollable on small screens ── */
+  #controlPanel { max-height: calc(100vh - 90px); overflow-y: auto; }
 </style>
 </head>
 <body>
 
 <div id="timeLabel">12:00 PM — Midday</div>
-<div id="shapeLabel">3D Shapes: Rectangular Prisms, Cones, Cylinders, Spheres</div>
+<div id="shapeLabel">3D Shapes: Rectangular Prisms, Cones, Cylinders, Spheres, Pyramids</div>
 <div id="instructions">Drag the sun across the sky to see how light and shadows change!</div>
 <div id="observationBox"></div>
+
+<!-- Hamburger Button -->
+<button id="hamburger" aria-label="Open controls">
+  <span></span><span></span><span></span>
+</button>
+
+<!-- Collapsible Control Panel -->
+<div id="controlPanel">
+  <div class="panel-header">Controls</div>
+
+  <div class="panel-section">
+    <label>Time of Day</label>
+    <input type="range" id="timeSlider" min="0" max="1000" value="500">
+    <div id="sliderTimeDisplay">12:00 PM</div>
+  </div>
+
+  <div class="panel-section">
+    <label>Scene Objects</label>
+    <div class="obj-toggle">
+      <span class="toggle-label">Person (Scale Reference)</span>
+      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+    </div>
+    <div class="obj-toggle">
+      <span class="toggle-label">Lamppost (Cylinder)</span>
+      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+    </div>
+    <div class="obj-toggle">
+      <span class="toggle-label">Pyramid</span>
+      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+    </div>
+    <div class="obj-toggle">
+      <span class="toggle-label">Bench (Rectangular Prism)</span>
+      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <label>Add 3D Figure</label>
+    <div class="add-obj-row">
+      <select id="shapeSelect">
+        <option value="cone">Cone (Pine Tree)</option>
+        <option value="sphere">Sphere (Round Tree)</option>
+        <option value="rectangular_prism">Rectangular Prism (Building)</option>
+        <option value="pyramid">Pyramid</option>
+        <option value="cylinder">Cylinder (Lamppost)</option>
+        <option value="person">Person</option>
+        <option value="bench">Bench</option>
+      </select>
+      <button id="addObjBtn">+ Add</button>
+    </div>
+    <div id="userObjList"></div>
+    <div class="user-obj-count" id="userObjCount"></div>
+  </div>
+
+  <div class="panel-section">
+    <label>Playback</label>
+    <button id="autoPlayBtn">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg>
+      Auto-Play Sunrise to Sunset
+    </button>
+  </div>
+</div>
 
 <canvas id="scene"></canvas>
 
 <script>
 // ============================================================
 // SUN MOVEMENT & SHADOW FORMATION — 3D + RAY-TRACED LIGHTING
+// v1.8 — Machine Time Default, New Objects, Hamburger Panel, Slider
 // Grade 2 Cambridge Primary Science + Maths (3D Figures)
 // ============================================================
 
@@ -62,6 +275,11 @@ const ctx = canvas.getContext('2d');
 const timeLabel = document.getElementById('timeLabel');
 const observationBox = document.getElementById('observationBox');
 const instructionsEl = document.getElementById('instructions');
+const hamburgerBtn = document.getElementById('hamburger');
+const controlPanel = document.getElementById('controlPanel');
+const timeSlider = document.getElementById('timeSlider');
+const sliderTimeDisplay = document.getElementById('sliderTimeDisplay');
+const autoPlayBtn = document.getElementById('autoPlayBtn');
 
 let W, H, horizonY, arcCX, arcCY, arcRX, arcRY;
 let dpr = window.devicePixelRatio || 1;
@@ -78,9 +296,41 @@ function resize() {
 resize();
 window.addEventListener('resize', () => { resize(); draw(); });
 
+// --- Object visibility state ---
+const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
+
+// --- Hamburger toggle ---
+hamburgerBtn.addEventListener('click', () => {
+  hamburgerBtn.classList.toggle('open');
+  controlPanel.classList.toggle('open');
+});
+
+// --- Object toggles ---
+document.querySelectorAll('.toggle-switch').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const obj = btn.dataset.obj;
+    objVisible[obj] = !objVisible[obj];
+    btn.classList.toggle('on', objVisible[obj]);
+    draw();
+  });
+});
+
 // --- Sun state ---
-let sunAngle = Math.PI / 2;
+let sunAngle = Math.PI / 2; // default noon, overridden below
 let dragging = false;
+let autoPlaying = false;
+let autoPlayRAF = null;
+
+// --- Machine-time default ---
+function initSunFromClock() {
+  const now = new Date();
+  const h = now.getHours() + now.getMinutes() / 60;
+  // Map 6:00 (6.0) → angle 0, 18:00 (18.0) → angle π
+  // Clamp to the 6 AM–6 PM window
+  const clamped = Math.max(6, Math.min(18, h));
+  sunAngle = ((clamped - 6) / 12) * Math.PI;
+  syncSliderToAngle();
+}
 
 function getSunPos(a) {
   return { x: arcCX - Math.cos(a) * arcRX, y: arcCY - Math.sin(a) * arcRY };
@@ -112,57 +362,196 @@ function getObservation(a, hours) {
   return 'Watch the shadows change as you move the sun!';
 }
 
+// --- Slider ↔ Sun sync ---
+function syncSliderToAngle() {
+  const t = sunAngle / Math.PI;
+  timeSlider.value = Math.round(t * 1000);
+  const info = getTimeFromAngle(sunAngle);
+  sliderTimeDisplay.textContent = info.timeStr;
+}
+
+timeSlider.addEventListener('input', () => {
+  const t = parseInt(timeSlider.value) / 1000;
+  sunAngle = t * Math.PI;
+  if (sunAngle < 0.05) sunAngle = 0.05;
+  if (sunAngle > Math.PI - 0.05) sunAngle = Math.PI - 0.05;
+  const info = getTimeFromAngle(sunAngle);
+  sliderTimeDisplay.textContent = info.timeStr;
+  draw();
+});
+
+// --- Auto-play ---
+autoPlayBtn.addEventListener('click', () => {
+  if (autoPlaying) {
+    stopAutoPlay();
+  } else {
+    startAutoPlay();
+  }
+});
+
+function startAutoPlay() {
+  autoPlaying = true;
+  autoPlayBtn.classList.add('playing');
+  autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="4" height="12"/><rect x="10" y="2" width="4" height="12"/></svg> Pause';
+  sunAngle = 0.05;
+  function step() {
+    sunAngle += 0.003;
+    if (sunAngle >= Math.PI - 0.05) {
+      stopAutoPlay();
+      return;
+    }
+    syncSliderToAngle();
+    draw();
+    autoPlayRAF = requestAnimationFrame(step);
+  }
+  autoPlayRAF = requestAnimationFrame(step);
+}
+
+function stopAutoPlay() {
+  autoPlaying = false;
+  autoPlayBtn.classList.remove('playing');
+  autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg> Auto-Play Sunrise to Sunset';
+  if (autoPlayRAF) { cancelAnimationFrame(autoPlayRAF); autoPlayRAF = null; }
+}
+
+// ============================================================
+// USER-ADDED OBJECTS SYSTEM
+// ============================================================
+
+const userObjects = [];           // { id, type, label, xFrac, depth }
+let userObjIdCounter = 0;
+
+const shapeSelect = document.getElementById('shapeSelect');
+const addObjBtn = document.getElementById('addObjBtn');
+const userObjList = document.getElementById('userObjList');
+const userObjCount = document.getElementById('userObjCount');
+
+// Random colour palette for user buildings/pyramids
+const buildingPalettes = [
+  { base: [180,140,200], win: [220,200,240] },   // lilac
+  { base: [140,180,160], win: [200,230,210] },   // sage green
+  { base: [200,170,120], win: [240,220,180] },   // tan
+  { base: [160,160,200], win: [210,210,240] },   // periwinkle
+  { base: [200,150,150], win: [240,210,210] },   // dusty rose
+];
+
+function addUserObject() {
+  const type = shapeSelect.value;
+  const id = ++userObjIdCounter;
+
+  // Place at a random x between 10%–90% of screen and depth 0.30–0.58
+  const xFrac = 0.10 + Math.random() * 0.80;
+  const depth = 0.30 + Math.random() * 0.28;
+
+  const labels = {
+    cone: 'Cone (Pine)', sphere: 'Sphere (Round Tree)',
+    rectangular_prism: 'Rect. Prism (Building)', pyramid: 'Pyramid',
+    cylinder: 'Cylinder (Lamppost)', person: 'Person', bench: 'Bench'
+  };
+
+  // Pick random palette for applicable types
+  const palette = buildingPalettes[Math.floor(Math.random() * buildingPalettes.length)];
+
+  // Pre-compute random dimensions at creation time (not per-frame)
+  const bw = 90 + Math.random() * 60;
+  const bh = 180 + Math.random() * 160;
+  const pyrSize = 30 + Math.random() * 20;
+
+  userObjects.push({ id, type, label: labels[type], xFrac, depth, palette, bw, bh, pyrSize });
+  // Sort by depth so farther objects draw first
+  userObjects.sort((a, b) => a.depth - b.depth);
+
+  renderUserObjList();
+  draw();
+}
+
+function removeUserObject(id) {
+  const idx = userObjects.findIndex(o => o.id === id);
+  if (idx !== -1) userObjects.splice(idx, 1);
+  renderUserObjList();
+  draw();
+}
+
+function clearAllUserObjects() {
+  userObjects.length = 0;
+  renderUserObjList();
+  draw();
+}
+
+function renderUserObjList() {
+  userObjList.innerHTML = userObjects.map(o =>
+    '<div class="user-obj-item">' +
+      '<span>' + o.label + '</span>' +
+      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove">&times;</button>' +
+    '</div>'
+  ).join('');
+  const n = userObjects.length;
+  userObjCount.textContent = n > 0 ? n + ' added object' + (n > 1 ? 's' : '') + ' (max 12)' : '';
+}
+
+addObjBtn.addEventListener('click', () => {
+  if (userObjects.length >= 12) return; // cap for performance
+  addUserObject();
+});
+
+// Draw a user object based on its type
+function drawUserObject(obj, shadowDir, shadowLen, light) {
+  const cx = W * obj.xFrac;
+  switch (obj.type) {
+    case 'cone':
+      draw3DTree(cx, obj.depth, 'pine', shadowDir, shadowLen, light);
+      break;
+    case 'sphere':
+      draw3DTree(cx, obj.depth, 'round', shadowDir, shadowLen, light);
+      break;
+    case 'rectangular_prism': {
+      const p = obj.palette;
+      draw3DBuilding(cx, obj.depth, obj.bw, obj.bh, p.base[0], p.base[1], p.base[2], p.win[0], p.win[1], p.win[2], shadowDir, shadowLen, light);
+      break;
+    }
+    case 'pyramid': {
+      const p = obj.palette;
+      drawPyramid(cx, obj.depth, obj.pyrSize, p.base[0], p.base[1], p.base[2], shadowDir, shadowLen, light);
+      break;
+    }
+    case 'cylinder':
+      drawLamppost(cx, obj.depth, shadowDir, shadowLen, light);
+      break;
+    case 'person':
+      drawPerson(cx, obj.depth, shadowDir, shadowLen, light);
+      break;
+    case 'bench':
+      drawBench(cx, obj.depth, shadowDir, shadowLen, light);
+      break;
+  }
+}
+
 // ============================================================
 // LIGHTING ENGINE — Simulated ray tracing
 // ============================================================
 
-// Compute light direction vector from sun position
-// Returns { lx, ly } normalized, and intensity (0-1) based on sun altitude
 function getLightInfo(sunPos) {
-  // Light direction: from sun toward ground center
-  const intensity = Math.sin(sunAngle); // 0 at horizon, 1 at zenith
-
-  // Light comes FROM the sun, so direction is away from sun
-  // For left/right face shading: sunAngle < PI/2 means sun on left (east), > PI/2 means right (west)
-  const sunNormX = Math.cos(sunAngle); // negative = sun on right, positive = sun on left
-
-  // Warm/cool color temperature based on sun altitude
-  // Low sun = warm orange light, high sun = bright white light
-  const warmth = 1 - intensity; // 1 = warm (low sun), 0 = neutral (high sun)
-
+  const intensity = Math.sin(sunAngle);
+  const sunNormX = Math.cos(sunAngle);
+  const warmth = 1 - intensity;
   return { intensity, sunNormX, warmth };
 }
 
-// Apply lighting to a base color: returns CSS color string
-// normal: -1 = facing left, 0 = facing up, 1 = facing right
-// baseR/G/B: base color channels
 function litColor(r, g, b, normalX, normalY, light) {
-  // Diffuse lighting: dot product of surface normal and light direction
-  // normalX: -1 (left-facing), 0 (front-facing), 1 (right-facing)
-  // normalY: 0 (vertical face), -1 (top face, facing up)
-
-  // Light comes from sun: sunNormX > 0 means sun is on left (east)
   const dotX = normalX * light.sunNormX;
-  const dotY = normalY * (-1); // light from above, top faces lit when sun is high
+  const dotY = normalY * (-1);
   const diffuse = Math.max(0, dotX * 0.5 + dotY * light.intensity * 0.5 + 0.3);
-
-  // Ambient + diffuse
   const ambient = 0.35;
   const totalLight = Math.min(1, ambient + diffuse * 0.65);
-
-  // Apply warm tint for low sun
   const warmR = light.warmth * 35;
   const warmG = light.warmth * 15;
   const warmB = -light.warmth * 20;
-
   const fr = Math.min(255, Math.max(0, r * totalLight + warmR * totalLight));
   const fg = Math.min(255, Math.max(0, g * totalLight + warmG * totalLight));
   const fb = Math.min(255, Math.max(0, b * totalLight + warmB * totalLight));
-
   return 'rgb(' + Math.round(fr) + ',' + Math.round(fg) + ',' + Math.round(fb) + ')';
 }
 
-// Specular highlight for shiny surfaces
 function specularHighlight(normalX, normalY, light, shininess) {
   const reflect = 2 * (normalX * light.sunNormX + normalY * (-light.intensity)) * normalX - light.sunNormX;
   const spec = Math.pow(Math.max(0, reflect), shininess) * light.intensity;
@@ -176,22 +565,10 @@ function specularHighlight(normalX, normalY, light, shininess) {
 function getShadowParams(angle) {
   const sunH = Math.sin(angle);
   const maxLen = W * 0.55;
-
-  // Physically-based cotangent formula: shadow/height = cos(elev)/sin(elev)
-  // This gives smooth, continuous movement across the WHOLE day,
-  // including the 10am–2pm window where the old power-curve stalled.
   const cosH = Math.sqrt(Math.max(0, 1 - sunH * sunH));
-  const cot = cosH / Math.max(0.13, sunH); // clamp prevents infinity at horizon
-
-  // Scale to screen: cot≈8 at 6am (full length) → 0 at noon (minimum)
+  const cot = cosH / Math.max(0.13, sunH);
   let sLen = maxLen * Math.min(1, cot * 0.46);
-  sLen = Math.max(sLen, W * 0.012); // tiny but visible at noon
-
-  // cos(angle) naturally equals:
-  //   +1 at sunrise (angle=0)   → shadow points east (right)
-  //    0 at noon    (angle=π/2) → shadow falls straight under the object
-  //   -1 at sunset  (angle=π)   → shadow points west (left)
-  // This removes the hard binary switch and makes direction fluid all day.
+  sLen = Math.max(sLen, W * 0.012);
   const sDir = Math.cos(angle);
   return { shadowDir: sDir, shadowLen: sLen };
 }
@@ -232,38 +609,27 @@ function getSkyGradient(a) {
 // ============================================================
 function drawSunRays(sunPos, light) {
   ctx.save();
-
-  // Draw visible rays from sun toward the ground/objects
   const rayCount = 14;
   const spread = Math.PI * 0.55;
   const startAngle = Math.PI / 2 - spread / 2;
-
   const rayAlpha = 0.04 + light.intensity * 0.06;
 
   for (let i = 0; i < rayCount; i++) {
     const t = i / (rayCount - 1);
     const angle = startAngle + t * spread;
-
-    // Ray direction downward from sun
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
-
     const rayLen = H * 0.9;
-
     const grad = ctx.createLinearGradient(
       sunPos.x, sunPos.y,
       sunPos.x + dx * rayLen, sunPos.y + dy * rayLen
     );
-
-    // Warm colored rays at sunrise/sunset, white-yellow at noon
-    const warmR = Math.round(255);
+    const warmR = 255;
     const warmG = Math.round(240 - light.warmth * 40);
     const warmB = Math.round(180 - light.warmth * 100);
-
     grad.addColorStop(0, 'rgba('+warmR+','+warmG+','+warmB+','+(rayAlpha * 1.5)+')');
     grad.addColorStop(0.3, 'rgba('+warmR+','+warmG+','+warmB+','+(rayAlpha * 0.8)+')');
     grad.addColorStop(1, 'rgba('+warmR+','+warmG+','+warmB+',0)');
-
     ctx.strokeStyle = grad;
     ctx.lineWidth = 6 + Math.sin(Date.now() / 2000 + i) * 2;
     ctx.beginPath();
@@ -271,7 +637,6 @@ function drawSunRays(sunPos, light) {
     ctx.lineTo(sunPos.x + dx * rayLen, sunPos.y + dy * rayLen);
     ctx.stroke();
   }
-
   ctx.restore();
 }
 
@@ -283,15 +648,10 @@ function drawCloud(cx, cy, scale, light) {
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
 
-  // Warm tint strength: peaks at sunrise/sunset, neutral at midday
-  const w = light.warmth; // 0 = midday neutral, 1 = golden hour warmth
-
-  // Top highlight (lit side): warm gold/pink at golden hour, bright white at noon
+  const w = light.warmth;
   const tR = Math.min(255, 248 + w * 7);
-  const tG = Math.min(255, 230 + w * 5 - w * 40);  // slightly desaturated green at dusk
-  const tB = Math.min(255, 220 - w * 80);           // drops blue for warm tone
-
-  // Bottom shadow: deep lavender/purple at dusk, grey at midday
+  const tG = Math.min(255, 230 + w * 5 - w * 40);
+  const tB = Math.min(255, 220 - w * 80);
   const bR = Math.min(255, 195 + w * 40);
   const bG = Math.min(255, 190 - w * 20);
   const bB = Math.min(255, 200 - w * 60);
@@ -338,7 +698,6 @@ function drawGround(light) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, horizonY, W, H - horizonY);
 
-  // Perspective grid
   ctx.save();
   ctx.strokeStyle = 'rgba(46,125,50,0.3)';
   ctx.lineWidth = 1;
@@ -357,6 +716,55 @@ function drawGround(light) {
 }
 
 // ============================================================
+// GENERIC SHADOW HELPER (for new objects)
+// ============================================================
+function drawGroundShadow(cx, baseY, objWidth, shadowDir, shadowLen, scale) {
+  if (shadowLen <= 0) return;
+  const sLen = shadowLen * scale;
+  const hw = objWidth * scale * 0.5;
+  const tipY = baseY + sLen * 0.25;
+  const spread = hw * 0.15;
+
+  ctx.save();
+  // Core umbra
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = '#050f05';
+  ctx.beginPath();
+  ctx.moveTo(cx - hw, baseY);
+  ctx.lineTo(cx + hw, baseY);
+  ctx.lineTo(cx + hw + shadowDir * sLen + spread, tipY);
+  ctx.lineTo(cx - hw + shadowDir * sLen - spread, tipY);
+  ctx.closePath(); ctx.fill();
+
+  // Penumbra
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = '#081808';
+  const pen = hw * 0.2;
+  ctx.beginPath();
+  ctx.moveTo(cx - hw - pen, baseY);
+  ctx.lineTo(cx + hw + pen, baseY);
+  ctx.lineTo(cx + hw + pen + shadowDir * sLen * 1.05 + spread * 1.8, tipY + sLen * 0.06);
+  ctx.lineTo(cx - hw - pen + shadowDir * sLen * 1.05 - spread * 1.8, tipY + sLen * 0.06);
+  ctx.closePath(); ctx.fill();
+
+  // Gradient fade
+  const fadeGrad = ctx.createLinearGradient(cx + shadowDir * sLen * 0.4, baseY, cx + shadowDir * sLen, tipY);
+  fadeGrad.addColorStop(0, 'rgba(5,15,5,0.28)');
+  fadeGrad.addColorStop(0.7, 'rgba(5,15,5,0.12)');
+  fadeGrad.addColorStop(1, 'rgba(5,15,5,0)');
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = fadeGrad;
+  ctx.beginPath();
+  ctx.moveTo(cx - hw, baseY);
+  ctx.lineTo(cx + hw, baseY);
+  ctx.lineTo(cx + hw + shadowDir * sLen * 1.1 + spread * 2.2, tipY + sLen * 0.1);
+  ctx.lineTo(cx - hw + shadowDir * sLen * 1.1 - spread * 2.2, tipY + sLen * 0.1);
+  ctx.closePath(); ctx.fill();
+
+  ctx.restore();
+}
+
+// ============================================================
 // 3D BUILDING — RAY-TRACED LIGHTING
 // ============================================================
 function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, winB, shadowDir, shadowLen, light) {
@@ -366,63 +774,49 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
   const sh = bh * scale;
   const depthOff = sw * 0.32;
 
-  // --- Ground shadow (LARGE, prominent, with gradient fade) ---
+  // --- Ground shadow ---
   if (shadowLen > 0) {
     const sLen = shadowLen * scale;
     const x = cx - sw / 2;
     const shadowTipY = baseY + sLen * 0.25;
-    const shadowSpread = sw * 0.15; // shadow widens at the tip
+    const shadowSpread = sw * 0.15;
 
     ctx.save();
-    // Dark core shadow
     ctx.globalAlpha = 0.45;
     ctx.fillStyle = '#050f05';
     ctx.beginPath();
-    ctx.moveTo(x, baseY);
-    ctx.lineTo(x + sw, baseY);
+    ctx.moveTo(x, baseY); ctx.lineTo(x + sw, baseY);
     ctx.lineTo(x + sw + shadowDir * sLen + shadowSpread, shadowTipY);
     ctx.lineTo(x + shadowDir * sLen - shadowSpread, shadowTipY);
-    ctx.closePath();
-    ctx.fill();
+    ctx.closePath(); ctx.fill();
 
-    // Softer outer shadow (penumbra) — slightly larger and more transparent
     ctx.globalAlpha = 0.2;
     ctx.fillStyle = '#081808';
     const penumbra = sw * 0.08;
     ctx.beginPath();
-    ctx.moveTo(x - penumbra, baseY);
-    ctx.lineTo(x + sw + penumbra, baseY);
+    ctx.moveTo(x - penumbra, baseY); ctx.lineTo(x + sw + penumbra, baseY);
     ctx.lineTo(x + sw + shadowDir * sLen * 1.05 + shadowSpread * 1.6, shadowTipY + sLen * 0.06);
     ctx.lineTo(x + shadowDir * sLen * 1.05 - shadowSpread * 1.6, shadowTipY + sLen * 0.06);
-    ctx.closePath();
-    ctx.fill();
+    ctx.closePath(); ctx.fill();
 
-    // Gradient fade at shadow tip
-    const fadeGrad = ctx.createLinearGradient(
-      x + shadowDir * sLen * 0.5, baseY,
-      x + shadowDir * sLen, shadowTipY
-    );
+    const fadeGrad = ctx.createLinearGradient(x + shadowDir * sLen * 0.5, baseY, x + shadowDir * sLen, shadowTipY);
     fadeGrad.addColorStop(0, 'rgba(5,15,5,0.3)');
     fadeGrad.addColorStop(0.7, 'rgba(5,15,5,0.15)');
     fadeGrad.addColorStop(1, 'rgba(5,15,5,0)');
     ctx.globalAlpha = 1;
     ctx.fillStyle = fadeGrad;
     ctx.beginPath();
-    ctx.moveTo(x, baseY);
-    ctx.lineTo(x + sw, baseY);
+    ctx.moveTo(x, baseY); ctx.lineTo(x + sw, baseY);
     ctx.lineTo(x + sw + shadowDir * sLen * 1.1 + shadowSpread * 2, shadowTipY + sLen * 0.1);
     ctx.lineTo(x + shadowDir * sLen * 1.1 - shadowSpread * 2, shadowTipY + sLen * 0.1);
-    ctx.closePath();
-    ctx.fill();
-
+    ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
   const x = cx - sw / 2;
   const topY = baseY - sh;
 
-  // --- SIDE FACE (right) — lit differently based on sun direction ---
-  // Side faces right, so normalX = 1
+  // SIDE FACE
   const sideCol = litColor(baseR * 0.8, baseG * 0.8, baseB * 0.8, 1, 0, light);
   ctx.fillStyle = sideCol;
   ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1;
@@ -431,7 +825,6 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
   ctx.lineTo(x+sw+depthOff, topY-depthOff*0.5); ctx.lineTo(x+sw, topY);
   ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  // Specular on side face
   const sideSpec = specularHighlight(1, 0, light, 8);
   if (sideSpec > 0.02) {
     ctx.save(); ctx.globalAlpha = sideSpec;
@@ -439,11 +832,10 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
     ctx.beginPath();
     ctx.moveTo(x+sw, baseY); ctx.lineTo(x+sw+depthOff, baseY-depthOff*0.5);
     ctx.lineTo(x+sw+depthOff, topY-depthOff*0.5); ctx.lineTo(x+sw, topY);
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
+    ctx.closePath(); ctx.fill(); ctx.restore();
   }
 
-  // --- FRONT FACE — normalX roughly 0 (facing viewer) ---
+  // FRONT FACE
   const frontCol = litColor(baseR, baseG, baseB, -0.2, 0, light);
   ctx.fillStyle = frontCol;
   ctx.beginPath();
@@ -451,7 +843,6 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
   ctx.lineTo(x+sw, topY); ctx.lineTo(x, topY);
   ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  // Front face specular
   const frontSpec = specularHighlight(-0.2, 0, light, 12);
   if (frontSpec > 0.02) {
     ctx.save(); ctx.globalAlpha = frontSpec * 0.5;
@@ -464,7 +855,7 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
     ctx.restore();
   }
 
-  // --- TOP FACE — normalY = -1 (facing up, catches most light) ---
+  // TOP FACE
   const topCol = litColor(baseR * 1.1, baseG * 1.1, baseB * 1.1, 0, -1, light);
   ctx.fillStyle = topCol;
   ctx.beginPath();
@@ -473,7 +864,6 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
   ctx.lineTo(x+depthOff, topY-depthOff*0.5);
   ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  // Top face bright specular when sun is high
   if (light.intensity > 0.5) {
     ctx.save();
     ctx.globalAlpha = (light.intensity - 0.5) * 0.4;
@@ -482,11 +872,10 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
     ctx.moveTo(x, topY); ctx.lineTo(x+sw, topY);
     ctx.lineTo(x+sw+depthOff, topY-depthOff*0.5);
     ctx.lineTo(x+depthOff, topY-depthOff*0.5);
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
+    ctx.closePath(); ctx.fill(); ctx.restore();
   }
 
-  // --- WINDOWS (front face, reflect light) ---
+  // WINDOWS
   const cols = 2;
   const rows = Math.max(2, Math.floor(sh / (32 * scale)));
   const winW = sw * 0.2; const winH = sh * 0.1;
@@ -497,17 +886,13 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
     for (let c = 0; c < cols; c++) {
       const wx = x + gapX + c * (winW + gapX);
       const wy = topY + 10 * scale + gapY + r * (winH + gapY);
-
-      // Window lit by sun — glass reflects light
       const winLit = litColor(winR, winG, winB, -0.2, 0, light);
       ctx.fillStyle = winLit;
       ctx.fillRect(wx, wy, winW, winH);
 
-      // Window specular reflection (glass is shiny)
       const winSpec = specularHighlight(-0.2, 0.3, light, 20);
       if (winSpec > 0.03) {
-        ctx.save();
-        ctx.globalAlpha = winSpec * 1.5;
+        ctx.save(); ctx.globalAlpha = winSpec * 1.5;
         const wg = ctx.createLinearGradient(wx, wy, wx + winW, wy + winH);
         wg.addColorStop(0, 'rgba(255,255,200,0.9)');
         wg.addColorStop(0.5, 'rgba(255,255,255,0.4)');
@@ -517,7 +902,6 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
         ctx.restore();
       }
 
-      // Window frame
       ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.moveTo(wx+winW/2, wy); ctx.lineTo(wx+winW/2, wy+winH);
@@ -526,7 +910,7 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
     }
   }
 
-  // --- DOOR ---
+  // DOOR
   if (sh > 60) {
     const dw = sw * 0.16; const dh = sh * 0.14;
     ctx.fillStyle = litColor(78, 52, 46, -0.2, 0, light);
@@ -535,7 +919,7 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
     ctx.beginPath(); ctx.arc(cx + dw * 0.25, baseY - dh * 0.45, 2 * scale, 0, Math.PI*2); ctx.fill();
   }
 
-  // --- Shape label ---
+  // Shape label
   ctx.save();
   ctx.font = 'bold ' + Math.max(9, 11*scale) + 'px Segoe UI, sans-serif';
   ctx.textAlign = 'center';
@@ -552,28 +936,23 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
 // ============================================================
 
 function draw3DCone(cx, tipY, baseY, radius, r, g, b, light) {
-  // Elliptical base
   ctx.fillStyle = litColor(r*0.6, g*0.6, b*0.6, 0, 0.5, light);
   ctx.beginPath();
   ctx.ellipse(cx, baseY, radius, radius*0.3, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // Cone body — lit side vs shadow side
-  // Left half
   const leftCol = litColor(r, g, b, -0.7, -0.3, light);
   ctx.fillStyle = leftCol;
   ctx.beginPath();
   ctx.moveTo(cx, tipY); ctx.lineTo(cx - radius, baseY); ctx.lineTo(cx, baseY);
   ctx.closePath(); ctx.fill();
 
-  // Right half
   const rightCol = litColor(r, g, b, 0.7, -0.3, light);
   ctx.fillStyle = rightCol;
   ctx.beginPath();
   ctx.moveTo(cx, tipY); ctx.lineTo(cx, baseY); ctx.lineTo(cx + radius, baseY);
   ctx.closePath(); ctx.fill();
 
-  // Specular highlight on lit side
   const spec = specularHighlight(light.sunNormX > 0 ? -0.5 : 0.5, -0.3, light, 6);
   if (spec > 0.02) {
     ctx.save(); ctx.globalAlpha = spec;
@@ -583,26 +962,20 @@ function draw3DCone(cx, tipY, baseY, radius, r, g, b, light) {
     ctx.moveTo(cx, tipY);
     ctx.lineTo(highlightX - radius * 0.15, baseY);
     ctx.lineTo(highlightX + radius * 0.15, baseY);
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
+    ctx.closePath(); ctx.fill(); ctx.restore();
   }
 }
 
 function draw3DCylinder(cx, topY, botY, radius, r, g, b, light) {
   const ellipseH = radius * 0.35;
 
-  // Body with lighting gradient (left-to-right shading)
   const bodyGrad = ctx.createLinearGradient(cx - radius, 0, cx + radius, 0);
-  const leftLit = litColor(r, g, b, -1, 0, light);
-  const centerLit = litColor(r*1.05, g*1.05, b*1.05, 0, 0, light);
-  const rightLit = litColor(r, g, b, 1, 0, light);
-  bodyGrad.addColorStop(0, leftLit);
-  bodyGrad.addColorStop(0.4, centerLit);
-  bodyGrad.addColorStop(1, rightLit);
+  bodyGrad.addColorStop(0, litColor(r, g, b, -1, 0, light));
+  bodyGrad.addColorStop(0.4, litColor(r*1.05, g*1.05, b*1.05, 0, 0, light));
+  bodyGrad.addColorStop(1, litColor(r, g, b, 1, 0, light));
   ctx.fillStyle = bodyGrad;
   ctx.fillRect(cx - radius, topY, radius * 2, botY - topY);
 
-  // Specular highlight stripe
   const spec = specularHighlight(light.sunNormX > 0 ? -0.5 : 0.5, 0, light, 10);
   if (spec > 0.02) {
     ctx.save(); ctx.globalAlpha = spec * 0.8;
@@ -616,35 +989,25 @@ function draw3DCylinder(cx, topY, botY, radius, r, g, b, light) {
     ctx.restore();
   }
 
-  // Bottom ellipse
   ctx.fillStyle = litColor(r*0.7, g*0.7, b*0.7, 0, 0.5, light);
   ctx.beginPath(); ctx.ellipse(cx, botY, radius, ellipseH, 0, 0, Math.PI*2); ctx.fill();
 
-  // Top ellipse
   ctx.fillStyle = litColor(r*1.1, g*1.1, b*1.1, 0, -1, light);
   ctx.beginPath(); ctx.ellipse(cx, topY, radius, ellipseH, 0, 0, Math.PI*2); ctx.fill();
 }
 
 function draw3DSphere(cx, cy, radius, r, g, b, light) {
-  // Gradient from lit side to shadow side
   const lightOffX = light.sunNormX > 0 ? -0.35 : 0.35;
   const grad = ctx.createRadialGradient(
     cx + lightOffX * radius, cy - radius * 0.3, radius * 0.05,
     cx, cy, radius
   );
-
-  const highlightCol = litColor(Math.min(255, r+60), Math.min(255, g+60), Math.min(255, b+50), 0, -1, light);
-  const midCol = litColor(r, g, b, 0, -0.3, light);
-  const shadowCol = litColor(r*0.5, g*0.5, b*0.5, 0, 0.3, light);
-
-  grad.addColorStop(0, highlightCol);
-  grad.addColorStop(0.5, midCol);
-  grad.addColorStop(1, shadowCol);
-
+  grad.addColorStop(0, litColor(Math.min(255, r+60), Math.min(255, g+60), Math.min(255, b+50), 0, -1, light));
+  grad.addColorStop(0.5, litColor(r, g, b, 0, -0.3, light));
+  grad.addColorStop(1, litColor(r*0.5, g*0.5, b*0.5, 0, 0.3, light));
   ctx.fillStyle = grad;
   ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2); ctx.fill();
 
-  // Specular highlight dot
   const specX = cx + lightOffX * radius * 0.7;
   const specY = cy - radius * 0.4;
   const specR = radius * 0.18;
@@ -657,83 +1020,52 @@ function draw3DSphere(cx, cy, radius, r, g, b, light) {
 function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
   const scale = perspScale(baseDepth);
   const baseY = perspY(baseDepth);
-
   const trunkR = 9 * scale;
   const trunkH = 62 * scale;
   const canopyR = 38 * scale;
 
-  // Ground shadow (LARGE, prominent)
+  // Ground shadow
   if (shadowLen > 0) {
     const sLen = shadowLen * scale * 0.85;
-    const shadowTipY = baseY + sLen * 0.2;
-
     ctx.save();
-
-    // Trunk shadow — dark trapezoid stretching along ground
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = '#050f05';
     ctx.beginPath();
-    ctx.moveTo(cx - trunkR, baseY);
-    ctx.lineTo(cx + trunkR, baseY);
+    ctx.moveTo(cx - trunkR, baseY); ctx.lineTo(cx + trunkR, baseY);
     ctx.lineTo(cx + trunkR + shadowDir * sLen * 0.4, baseY + sLen * 0.12);
     ctx.lineTo(cx - trunkR + shadowDir * sLen * 0.4, baseY + sLen * 0.12);
-    ctx.closePath();
-    ctx.fill();
+    ctx.closePath(); ctx.fill();
 
-    // Canopy shadow — large dark ellipse on the ground
     ctx.globalAlpha = 0.4;
-    ctx.fillStyle = '#050f05';
     ctx.beginPath();
-    ctx.ellipse(
-      cx + shadowDir * sLen * 0.6,
-      baseY + sLen * 0.15,
-      canopyR * 1.2,
-      canopyR * 0.35,
-      0, 0, Math.PI * 2
-    );
+    ctx.ellipse(cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15, canopyR * 1.2, canopyR * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Penumbra (soft outer edge)
     ctx.globalAlpha = 0.15;
     ctx.fillStyle = '#081808';
     ctx.beginPath();
-    ctx.ellipse(
-      cx + shadowDir * sLen * 0.6,
-      baseY + sLen * 0.15,
-      canopyR * 1.6,
-      canopyR * 0.5,
-      0, 0, Math.PI * 2
-    );
+    ctx.ellipse(cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15, canopyR * 1.6, canopyR * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Gradient fade connecting trunk to canopy shadow
-    const fadeGrad = ctx.createLinearGradient(
-      cx, baseY,
-      cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15
-    );
+    const fadeGrad = ctx.createLinearGradient(cx, baseY, cx + shadowDir * sLen * 0.6, baseY + sLen * 0.15);
     fadeGrad.addColorStop(0, 'rgba(5,15,5,0.25)');
     fadeGrad.addColorStop(1, 'rgba(5,15,5,0)');
     ctx.globalAlpha = 1;
     ctx.fillStyle = fadeGrad;
     ctx.beginPath();
-    ctx.moveTo(cx - trunkR * 2, baseY);
-    ctx.lineTo(cx + trunkR * 2, baseY);
+    ctx.moveTo(cx - trunkR * 2, baseY); ctx.lineTo(cx + trunkR * 2, baseY);
     ctx.lineTo(cx + shadowDir * sLen * 0.7 + canopyR, baseY + sLen * 0.18);
     ctx.lineTo(cx + shadowDir * sLen * 0.7 - canopyR, baseY + sLen * 0.18);
-    ctx.closePath();
-    ctx.fill();
-
+    ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
-  // Trunk (Cylinder)
   const trunkTopY = baseY - trunkH;
   draw3DCylinder(cx, trunkTopY, baseY, trunkR, 109, 76, 65, light);
 
   if (type === 'round') {
     const canopyCY = trunkTopY - canopyR * 0.55;
     draw3DSphere(cx, canopyCY, canopyR, 56, 142, 60, light);
-
     ctx.save();
     ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
     ctx.textAlign = 'center';
@@ -749,7 +1081,6 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
     const c2BaseY = coneTipY + (coneBaseY-coneTipY)*0.45;
     const c2TipY = coneTipY - canopyR*0.5;
     draw3DCone(cx, c2TipY, c2BaseY, canopyR*0.65, 56, 142, 60, light);
-
     ctx.save();
     ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
     ctx.textAlign = 'center';
@@ -760,7 +1091,6 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
     ctx.restore();
   }
 
-  // Cylinder label
   ctx.save();
   ctx.font = Math.max(7,8*scale)+'px Segoe UI, sans-serif';
   ctx.textAlign = 'center';
@@ -768,6 +1098,311 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
   ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.5;
   ctx.strokeText('Cylinder', cx, (trunkTopY+baseY)/2);
   ctx.fillText('Cylinder', cx, (trunkTopY+baseY)/2);
+  ctx.restore();
+}
+
+// ============================================================
+// NEW OBJECT: PERSON (scale reference figure)
+// ============================================================
+function drawPerson(cx, baseDepth, shadowDir, shadowLen, light) {
+  const scale = perspScale(baseDepth);
+  const baseY = perspY(baseDepth);
+
+  // Person proportions (child-friendly, simplified)
+  const personH = 90 * scale;    // total height
+  const headR = 10 * scale;
+  const bodyW = 18 * scale;
+  const bodyH = 35 * scale;
+  const legH = personH - bodyH - headR * 2 - 4 * scale;
+  const legW = 7 * scale;
+  const armW = 6 * scale;
+  const armH = 28 * scale;
+
+  const feetY = baseY;
+  const hipY = feetY - legH;
+  const shoulderY = hipY - bodyH;
+  const headCY = shoulderY - headR - 2 * scale;
+
+  // Shadow
+  drawGroundShadow(cx, baseY, bodyW * 1.2, shadowDir, shadowLen * 0.7, scale);
+
+  // Legs (two cylinders)
+  const legGap = legW * 0.8;
+  draw3DCylinder(cx - legGap, hipY, feetY, legW * 0.5, 60, 80, 140, light);  // jeans blue
+  draw3DCylinder(cx + legGap, hipY, feetY, legW * 0.5, 60, 80, 140, light);
+
+  // Shoes
+  ctx.fillStyle = litColor(50, 40, 35, -0.2, 0, light);
+  ctx.beginPath();
+  ctx.ellipse(cx - legGap, feetY, legW * 0.6, legW * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + legGap, feetY, legW * 0.6, legW * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body (cylinder torso)
+  draw3DCylinder(cx, shoulderY, hipY, bodyW * 0.5, 220, 80, 80, light); // red shirt
+
+  // Arms
+  draw3DCylinder(cx - bodyW * 0.5 - armW * 0.3, shoulderY + 2 * scale, shoulderY + armH, armW * 0.4, 200, 155, 120, light); // skin
+  draw3DCylinder(cx + bodyW * 0.5 + armW * 0.3, shoulderY + 2 * scale, shoulderY + armH, armW * 0.4, 200, 155, 120, light);
+
+  // Head (sphere)
+  draw3DSphere(cx, headCY, headR, 210, 170, 130, light); // skin tone
+
+  // Eyes (tiny dots)
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.arc(cx - headR * 0.3, headCY - headR * 0.15, headR * 0.1, 0, Math.PI * 2);
+  ctx.arc(cx + headR * 0.3, headCY - headR * 0.15, headR * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Smile
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1 * scale;
+  ctx.beginPath();
+  ctx.arc(cx, headCY + headR * 0.05, headR * 0.3, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+
+  // Label
+  ctx.save();
+  ctx.font = 'bold ' + Math.max(8, 10 * scale) + 'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
+  ctx.strokeText('Person', cx, headCY - headR - 6 * scale);
+  ctx.fillText('Person', cx, headCY - headR - 6 * scale);
+  ctx.restore();
+}
+
+// ============================================================
+// NEW OBJECT: LAMPPOST (tall cylinder + sphere light)
+// ============================================================
+function drawLamppost(cx, baseDepth, shadowDir, shadowLen, light) {
+  const scale = perspScale(baseDepth);
+  const baseY = perspY(baseDepth);
+
+  const poleR = 4 * scale;
+  const poleH = 100 * scale;
+  const lampR = 10 * scale;
+  const poleTopY = baseY - poleH;
+
+  // Shadow
+  drawGroundShadow(cx, baseY, poleR * 3, shadowDir, shadowLen * 0.9, scale);
+
+  // Base plate (small rectangular prism)
+  const baseW = 20 * scale;
+  const baseH = 6 * scale;
+  ctx.fillStyle = litColor(80, 80, 85, -0.2, 0, light);
+  ctx.fillRect(cx - baseW / 2, baseY - baseH, baseW, baseH);
+  ctx.fillStyle = litColor(90, 90, 95, 0, -1, light);
+  ctx.fillRect(cx - baseW / 2, baseY - baseH, baseW, 2);
+
+  // Pole (cylinder)
+  draw3DCylinder(cx, poleTopY, baseY - baseH, poleR, 85, 85, 90, light);
+
+  // Cross arm
+  const armLen = 18 * scale;
+  ctx.fillStyle = litColor(80, 80, 85, 0, -1, light);
+  ctx.fillRect(cx - 1.5 * scale, poleTopY, armLen + 1.5 * scale, 3 * scale);
+
+  // Lamp (sphere, glowing)
+  const lampCX = cx + armLen;
+  const lampCY = poleTopY + 1.5 * scale;
+  draw3DSphere(lampCX, lampCY, lampR, 240, 230, 180, light);
+
+  // Glow effect (subtle)
+  ctx.save();
+  const glowAlpha = Math.max(0.05, 0.2 - light.intensity * 0.15);
+  const glowGrad = ctx.createRadialGradient(lampCX, lampCY, lampR * 0.5, lampCX, lampCY, lampR * 3);
+  glowGrad.addColorStop(0, 'rgba(255,240,180,' + glowAlpha + ')');
+  glowGrad.addColorStop(1, 'rgba(255,240,180,0)');
+  ctx.fillStyle = glowGrad;
+  ctx.beginPath();
+  ctx.arc(lampCX, lampCY, lampR * 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Label: "Cylinder" on pole
+  ctx.save();
+  ctx.font = Math.max(7, 8 * scale) + 'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.5;
+  const midPole = (poleTopY + baseY) / 2;
+  ctx.strokeText('Cylinder', cx, midPole);
+  ctx.fillText('Cylinder', cx, midPole);
+  ctx.restore();
+
+  // Label: "Sphere" on lamp
+  ctx.save();
+  ctx.font = 'bold ' + Math.max(7, 9 * scale) + 'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
+  ctx.strokeText('Sphere', lampCX, lampCY - lampR - 5 * scale);
+  ctx.fillText('Sphere', lampCX, lampCY - lampR - 5 * scale);
+  ctx.restore();
+}
+
+// ============================================================
+// NEW OBJECT: PYRAMID (square-based)
+// ============================================================
+function drawPyramid(cx, baseDepth, size, r, g, b, shadowDir, shadowLen, light) {
+  const scale = perspScale(baseDepth);
+  const baseY = perspY(baseDepth);
+
+  const bw = size * scale;       // base half-width
+  const ph = size * 1.6 * scale; // pyramid height
+  const depthOff = bw * 0.4;     // 3D depth offset
+  const tipY = baseY - ph;
+
+  // Shadow
+  drawGroundShadow(cx, baseY, bw * 2.2, shadowDir, shadowLen * 0.85, scale);
+
+  // Base front edge Y
+  const baseFrontY = baseY;
+  const baseBackY = baseY - depthOff * 0.4;
+
+  // BACK-LEFT face
+  ctx.fillStyle = litColor(r * 0.65, g * 0.65, b * 0.65, -0.5, -0.5, light);
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY);
+  ctx.lineTo(cx - bw, baseFrontY);
+  ctx.lineTo(cx - bw + depthOff, baseBackY);
+  ctx.lineTo(cx + depthOff, baseBackY);
+  ctx.closePath(); ctx.fill();
+
+  // BACK-RIGHT face
+  ctx.fillStyle = litColor(r * 0.6, g * 0.6, b * 0.6, 0.5, -0.5, light);
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY);
+  ctx.lineTo(cx + bw, baseFrontY);
+  ctx.lineTo(cx + bw + depthOff, baseBackY);
+  ctx.lineTo(cx + depthOff, baseBackY);
+  ctx.closePath(); ctx.fill();
+
+  // FRONT-LEFT face
+  ctx.fillStyle = litColor(r, g, b, -0.7, -0.3, light);
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY);
+  ctx.lineTo(cx - bw, baseFrontY);
+  ctx.lineTo(cx, baseFrontY);
+  ctx.closePath(); ctx.fill();
+
+  // FRONT-RIGHT face
+  ctx.fillStyle = litColor(r * 0.9, g * 0.9, b * 0.9, 0.7, -0.3, light);
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY);
+  ctx.lineTo(cx, baseFrontY);
+  ctx.lineTo(cx + bw, baseFrontY);
+  ctx.closePath(); ctx.fill();
+
+  // Specular on lit face
+  const litFace = light.sunNormX > 0 ? -1 : 1;
+  const pyrSpec = specularHighlight(litFace * 0.7, -0.3, light, 8);
+  if (pyrSpec > 0.02) {
+    ctx.save(); ctx.globalAlpha = pyrSpec;
+    ctx.fillStyle = 'rgba(255,255,230,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(cx, tipY);
+    if (litFace < 0) {
+      ctx.lineTo(cx - bw, baseFrontY); ctx.lineTo(cx, baseFrontY);
+    } else {
+      ctx.lineTo(cx, baseFrontY); ctx.lineTo(cx + bw, baseFrontY);
+    }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+
+  // Edge lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY); ctx.lineTo(cx - bw, baseFrontY);
+  ctx.moveTo(cx, tipY); ctx.lineTo(cx + bw, baseFrontY);
+  ctx.moveTo(cx, tipY); ctx.lineTo(cx + depthOff, baseBackY);
+  ctx.moveTo(cx - bw, baseFrontY); ctx.lineTo(cx + bw, baseFrontY);
+  ctx.moveTo(cx + bw, baseFrontY); ctx.lineTo(cx + bw + depthOff, baseBackY);
+  ctx.moveTo(cx + bw + depthOff, baseBackY); ctx.lineTo(cx - bw + depthOff, baseBackY);
+  ctx.stroke();
+
+  // Label
+  ctx.save();
+  ctx.font = 'bold ' + Math.max(9, 11 * scale) + 'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 2.5;
+  ctx.strokeText('Pyramid', cx, tipY - 8 * scale);
+  ctx.fillText('Pyramid', cx, tipY - 8 * scale);
+  ctx.restore();
+}
+
+// ============================================================
+// NEW OBJECT: BENCH (low rectangular prism)
+// ============================================================
+function drawBench(cx, baseDepth, shadowDir, shadowLen, light) {
+  const scale = perspScale(baseDepth);
+  const baseY = perspY(baseDepth);
+
+  const seatW = 55 * scale;
+  const seatH = 5 * scale;
+  const seatTop = baseY - 22 * scale;
+  const legW = 4 * scale;
+  const legH = 22 * scale - seatH;
+  const depthOff = seatW * 0.15;
+
+  // Shadow
+  drawGroundShadow(cx, baseY, seatW * 1.1, shadowDir, shadowLen * 0.5, scale);
+
+  // Legs (4 small rectangles)
+  const legInset = seatW * 0.38;
+  ctx.fillStyle = litColor(90, 70, 55, -0.2, 0, light);
+  ctx.fillRect(cx - legInset - legW / 2, seatTop + seatH, legW, legH);
+  ctx.fillRect(cx + legInset - legW / 2, seatTop + seatH, legW, legH);
+  // Back legs (slightly offset for 3D feel)
+  ctx.fillStyle = litColor(75, 58, 45, 0.5, 0, light);
+  ctx.fillRect(cx - legInset - legW / 2 + depthOff * 0.5, seatTop + seatH - depthOff * 0.2, legW, legH * 0.85);
+  ctx.fillRect(cx + legInset - legW / 2 + depthOff * 0.5, seatTop + seatH - depthOff * 0.2, legW, legH * 0.85);
+
+  // Seat (top — rectangular prism)
+  // Side
+  ctx.fillStyle = litColor(130, 90, 60, 1, 0, light);
+  ctx.beginPath();
+  ctx.moveTo(cx + seatW / 2, seatTop + seatH);
+  ctx.lineTo(cx + seatW / 2 + depthOff, seatTop + seatH - depthOff * 0.4);
+  ctx.lineTo(cx + seatW / 2 + depthOff, seatTop - depthOff * 0.4);
+  ctx.lineTo(cx + seatW / 2, seatTop);
+  ctx.closePath(); ctx.fill();
+
+  // Front
+  ctx.fillStyle = litColor(150, 105, 70, -0.2, 0, light);
+  ctx.fillRect(cx - seatW / 2, seatTop, seatW, seatH);
+
+  // Top
+  ctx.fillStyle = litColor(170, 120, 80, 0, -1, light);
+  ctx.beginPath();
+  ctx.moveTo(cx - seatW / 2, seatTop);
+  ctx.lineTo(cx + seatW / 2, seatTop);
+  ctx.lineTo(cx + seatW / 2 + depthOff, seatTop - depthOff * 0.4);
+  ctx.lineTo(cx - seatW / 2 + depthOff, seatTop - depthOff * 0.4);
+  ctx.closePath(); ctx.fill();
+
+  // Wood grain lines on top
+  ctx.strokeStyle = 'rgba(100,65,35,0.2)'; ctx.lineWidth = 0.8;
+  for (let i = 0; i < 3; i++) {
+    const gy = seatTop - depthOff * 0.1 - i * seatH * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(cx - seatW / 2 + 3, seatTop + (i + 1) * 1.2);
+    ctx.lineTo(cx + seatW / 2 - 3, seatTop + (i + 1) * 1.2);
+    ctx.stroke();
+  }
+
+  // Label
+  ctx.save();
+  ctx.font = 'bold ' + Math.max(8, 9 * scale) + 'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
+  ctx.strokeText('Rectangular Prism', cx + depthOff / 2, seatTop - depthOff * 0.5 - 6 * scale);
+  ctx.fillText('Rectangular Prism', cx + depthOff / 2, seatTop - depthOff * 0.5 - 6 * scale);
   ctx.restore();
 }
 
@@ -854,13 +1489,11 @@ function draw() {
   // Arc guide
   drawArcGuide();
 
-  // Sun rays (behind clouds, in sky)
+  // Sun rays
   drawSunRays(sunPos, light);
 
-  // Clouds drift westward (left to right) as sun moves across the sky
-  // sunAngle: 0 = sunrise, π/2 = noon, π = sunset
+  // Clouds
   const cloudDrift = (sunAngle / Math.PI - 0.5) * W * 0.14;
-  // Clouds also rise slightly toward noon, lower at dawn/dusk
   const cloudRise = (1 - light.intensity) * H * 0.04;
   drawCloud(W*0.18 + cloudDrift * 0.9, H*0.12 + cloudRise, 1.2, light);
   drawCloud(W*0.52 + cloudDrift * 1.0, H*0.08 + cloudRise * 0.7, 0.9, light);
@@ -878,24 +1511,54 @@ function draw() {
   // Labels
   drawLabels();
 
-  // --- Scene objects (back to front) ---
+  // --- Scene objects (back to front by depth) ---
+
+  // Far back row (depth ~0.15)
   draw3DTree(W*0.1, 0.15, 'pine', shadowDir, shadowLen, light);
   draw3DTree(W*0.9, 0.15, 'pine', shadowDir, shadowLen, light);
 
+  // Pyramid (depth 0.28) — behind buildings
+  if (objVisible.pyramid) {
+    drawPyramid(W * 0.15, 0.28, 40, 210, 185, 130, shadowDir, shadowLen, light);
+  }
+
+  // Buildings row (depth ~0.35–0.40)
   draw3DBuilding(W*0.30, 0.35, 125, 260, 232,141,79, 255,224,178, shadowDir, shadowLen, light);
   draw3DBuilding(W*0.52, 0.40, 150, 360, 91,141,190, 187,222,251, shadowDir, shadowLen, light);
   draw3DBuilding(W*0.72, 0.36, 110, 220, 229,115,115, 255,205,210, shadowDir, shadowLen, light);
 
+  // Mid-ground row (depth ~0.38)
   draw3DTree(W*0.20, 0.38, 'round', shadowDir, shadowLen, light);
   draw3DTree(W*0.83, 0.38, 'round', shadowDir, shadowLen, light);
 
+  // Lamppost (depth 0.48) — in front of buildings
+  if (objVisible.lamppost) {
+    drawLamppost(W * 0.43, 0.48, shadowDir, shadowLen, light);
+  }
+
+  // Bench (depth 0.52) — foreground area
+  if (objVisible.bench) {
+    drawBench(W * 0.65, 0.52, shadowDir, shadowLen, light);
+  }
+
+  // Person (depth 0.55) — clearly in front for scale
+  if (objVisible.person) {
+    drawPerson(W * 0.50, 0.55, shadowDir, shadowLen, light);
+  }
+
+  // User-added objects (sorted by depth, integrated with scene)
+  for (const obj of userObjects) {
+    drawUserObject(obj, shadowDir, shadowLen, light);
+  }
+
+  // Foreground trees (depth ~0.58–0.63)
   draw3DTree(W*0.06, 0.62, 'pine', shadowDir, shadowLen, light);
   draw3DTree(W*0.40, 0.58, 'round', shadowDir, shadowLen, light);
   draw3DTree(W*0.60, 0.60, 'pine', shadowDir, shadowLen, light);
   draw3DTree(W*0.95, 0.63, 'round', shadowDir, shadowLen, light);
 
   // UI
-  timeLabel.textContent = timeStr + ' — ' + period;
+  timeLabel.textContent = timeStr + ' \u2014 ' + period;
   observationBox.innerHTML = getObservation(sunAngle, hours);
 }
 
@@ -913,16 +1576,44 @@ function isNearSun(px,py){
   return dx*dx+dy*dy<hr*hr;
 }
 
-canvas.addEventListener('mousedown',e=>{if(isNearSun(e.clientX,e.clientY)){dragging=true;instructionsEl.style.opacity='0';draw();}});
-window.addEventListener('mousemove',e=>{if(dragging){sunAngle=angleFromPointer(e.clientX,e.clientY);draw();}});
+canvas.addEventListener('mousedown',e=>{
+  if(isNearSun(e.clientX,e.clientY)){
+    dragging=true; stopAutoPlay();
+    instructionsEl.style.opacity='0'; draw();
+  }
+});
+window.addEventListener('mousemove',e=>{
+  if(dragging){
+    sunAngle=angleFromPointer(e.clientX,e.clientY);
+    syncSliderToAngle(); draw();
+  }
+});
 window.addEventListener('mouseup',()=>{dragging=false;});
 
-canvas.addEventListener('touchstart',e=>{const t=e.touches[0];if(isNearSun(t.clientX,t.clientY)){dragging=true;instructionsEl.style.opacity='0';e.preventDefault();draw();}},{passive:false});
-window.addEventListener('touchmove',e=>{if(dragging){const t=e.touches[0];sunAngle=angleFromPointer(t.clientX,t.clientY);draw();e.preventDefault();}},{passive:false});
+canvas.addEventListener('touchstart',e=>{
+  const t=e.touches[0];
+  if(isNearSun(t.clientX,t.clientY)){
+    dragging=true; stopAutoPlay();
+    instructionsEl.style.opacity='0'; e.preventDefault(); draw();
+  }
+},{passive:false});
+window.addEventListener('touchmove',e=>{
+  if(dragging){
+    const t=e.touches[0];
+    sunAngle=angleFromPointer(t.clientX,t.clientY);
+    syncSliderToAngle(); draw(); e.preventDefault();
+  }
+},{passive:false});
 window.addEventListener('touchend',()=>{dragging=false;});
 
-function animate(){draw();requestAnimationFrame(animate);}
-setTimeout(()=>{instructionsEl.style.opacity='0';},5000);
+// ============================================================
+// INITIALIZE
+// ============================================================
+initSunFromClock();     // Set sun position from device clock
+draw();                 // Initial render
+
+function animate(){ draw(); requestAnimationFrame(animate); }
+setTimeout(()=>{ instructionsEl.style.opacity='0'; }, 5000);
 animate();
 </script>
 </body>
