@@ -258,7 +258,7 @@
     <label>Playback</label>
     <button id="autoPlayBtn">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg>
-      Auto-Play Sunrise to Sunset
+      Auto-Play Full Day &amp; Night
     </button>
   </div>
 </div>
@@ -322,15 +322,29 @@ let sunAngle = Math.PI / 2; // default noon, overridden below
 let dragging = false;
 let autoPlaying = false;
 let autoPlayRAF = null;
+let draggingWhat = null; // 'sun' | 'moon' | null
+let twinkleRAF = null;
+
+// Persistent twinkling loop — redraws only during night for star animation
+function startTwinkle() {
+  if (twinkleRAF) return;
+  function tick() {
+    const isNight = sunAngle > Math.PI && sunAngle < 2 * Math.PI;
+    if (isNight && !autoPlaying) draw();
+    twinkleRAF = isNight ? requestAnimationFrame(tick) : null;
+  }
+  twinkleRAF = requestAnimationFrame(tick);
+}
+function stopTwinkle() {
+  if (twinkleRAF) { cancelAnimationFrame(twinkleRAF); twinkleRAF = null; }
+}
 
 // --- Machine-time default ---
 function initSunFromClock() {
   const now = new Date();
   const h = now.getHours() + now.getMinutes() / 60;
-  // Map 6:00 (6.0) → angle 0, 18:00 (18.0) → angle π
-  // Clamp to the 6 AM–6 PM window
-  const clamped = Math.max(6, Math.min(18, h));
-  sunAngle = ((clamped - 6) / 12) * Math.PI;
+  // Map 6:00 AM → angle 0, 6:00 PM → angle π, 6:00 AM next day → angle 2π
+  sunAngle = ((h - 6 + 24) % 24) / 24 * (2 * Math.PI);
   syncSliderToAngle();
 }
 
@@ -339,34 +353,51 @@ function getSunPos(a) {
 }
 
 function getTimeFromAngle(a) {
-  const hours = 6 + (a / Math.PI) * 12;
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  const dh = h > 12 ? h - 12 : (h === 0 ? 12 : h);
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hoursRaw = (6 + (a / (2 * Math.PI)) * 24) % 24;
+  const hours = hoursRaw; // 0–24, wrapping midnight
+  const hInt = Math.floor(hoursRaw);
+  const m = Math.round((hoursRaw - hInt) * 60);
+  const dh = hInt > 12 ? hInt - 12 : (hInt === 0 ? 12 : hInt);
+  const ampm = hInt >= 12 ? 'PM' : 'AM';
   const ts = dh + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
   let p = '';
-  if (hours < 8) p = 'Early Morning';
-  else if (hours < 10) p = 'Morning';
-  else if (hours < 11.5) p = 'Late Morning';
-  else if (hours < 12.5) p = 'Midday';
-  else if (hours < 14) p = 'Early Afternoon';
-  else if (hours < 16) p = 'Afternoon';
-  else if (hours < 17.5) p = 'Late Afternoon';
-  else p = 'Evening';
+  if (hours >= 5 && hours < 6) p = 'Pre-Dawn';
+  else if (hours >= 6 && hours < 8) p = 'Early Morning';
+  else if (hours >= 8 && hours < 10) p = 'Morning';
+  else if (hours >= 10 && hours < 11.5) p = 'Late Morning';
+  else if (hours >= 11.5 && hours < 12.5) p = 'Midday';
+  else if (hours >= 12.5 && hours < 14) p = 'Early Afternoon';
+  else if (hours >= 14 && hours < 16) p = 'Afternoon';
+  else if (hours >= 16 && hours < 17.5) p = 'Late Afternoon';
+  else if (hours >= 17.5 && hours < 19) p = 'Dusk';
+  else if (hours >= 19 && hours < 21) p = 'Evening';
+  else if (hours >= 21 && hours < 23) p = 'Night';
+  else if (hours >= 23 || hours < 1) p = 'Midnight';
+  else if (hours >= 1 && hours < 4) p = 'Late Night';
+  else if (hours >= 4 && hours < 5) p = 'Pre-Dawn';
+  else p = 'Dawn';
   return { timeStr: ts, period: p, hours };
 }
 
 function getObservation(a, hours) {
-  if (hours < 8 || hours > 17) return 'The sun is very low. The shadows are very <b>long</b>!';
-  if (hours < 10 || hours > 15.5) return 'The sun is getting higher. The shadows are getting <b>shorter</b>.';
-  if (hours >= 11 && hours <= 13) return 'The sun is high up! The shadows are very <b>short</b>.';
+  const h = hours < 6 ? hours + 24 : hours; // normalize wrap (e.g. 2 AM = 26)
+  if (h >= 18 && h < 20) return 'The sun has set. The sky is getting dark. Shadows have disappeared.';
+  if (h >= 20 && h < 23) return 'It is night! The <b>stars</b> are shining. The moon lights up the sky.';
+  if (h >= 23 || h < 1) return 'It is midnight. The moon is high. Stars fill the sky above!';
+  if (h >= 1 && h < 4) return 'The sky is dark. Stars are <b>twinkling</b>. Dawn is still far away.';
+  if (h >= 4 && h < 6) return 'The sun is about to rise. The sky begins to <b>glow</b> in the east.';
+  if (h < 8) return 'The sun is very low and <b>rising</b>. Shadows are very <b>long</b>!';
+  if (h < 11) return 'The sun is rising. The shadows are getting <b>shorter</b>.';
+  if (h >= 11 && h <= 13) return 'The sun is high up! The shadows are very <b>short</b>.';
+  if (h > 13 && h <= 15.5) return 'The sun is past noon and heading <b>lower</b>. Shadows are slowly growing.';
+  if (h > 15.5 && h < 17) return 'The sun is getting <b>lower</b>. The shadows are getting <b>longer</b>.';
+  if (h >= 17) return 'The sun is very low and <b>setting</b>. Shadows are very <b>long</b>!';
   return 'Watch the shadows change as you move the sun!';
 }
 
 // --- Slider ↔ Sun sync ---
 function syncSliderToAngle() {
-  const t = sunAngle / Math.PI;
+  const t = sunAngle / (2 * Math.PI);
   timeSlider.value = Math.round(t * 1000);
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
@@ -374,9 +405,9 @@ function syncSliderToAngle() {
 
 timeSlider.addEventListener('input', () => {
   const t = parseInt(timeSlider.value) / 1000;
-  sunAngle = t * Math.PI;
+  sunAngle = t * 2 * Math.PI;
   if (sunAngle < 0.05) sunAngle = 0.05;
-  if (sunAngle > Math.PI - 0.05) sunAngle = Math.PI - 0.05;
+  if (sunAngle > 2 * Math.PI - 0.05) sunAngle = 2 * Math.PI - 0.05;
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
   draw();
@@ -395,12 +426,11 @@ function startAutoPlay() {
   autoPlaying = true;
   autoPlayBtn.classList.add('playing');
   autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="4" height="12"/><rect x="10" y="2" width="4" height="12"/></svg> Pause';
-  sunAngle = 0.05;
+  if (sunAngle >= 2 * Math.PI - 0.1) sunAngle = 0.05;
   function step() {
     sunAngle += 0.003;
-    if (sunAngle >= Math.PI - 0.05) {
-      stopAutoPlay();
-      return;
+    if (sunAngle >= 2 * Math.PI - 0.05) {
+      sunAngle = 0.05; // loop back to sunrise
     }
     syncSliderToAngle();
     draw();
@@ -412,120 +442,159 @@ function startAutoPlay() {
 function stopAutoPlay() {
   autoPlaying = false;
   autoPlayBtn.classList.remove('playing');
-  autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg> Auto-Play Sunrise to Sunset';
+  autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg> Auto-Play Full Day &amp; Night';
   if (autoPlayRAF) { cancelAnimationFrame(autoPlayRAF); autoPlayRAF = null; }
 }
 
 // ============================================================
-// USER-ADDED OBJECTS SYSTEM
+// SCENE OBJECTS — Unified built-in + user-added, all draggable
 // ============================================================
+// Schema: { id, type, xFrac, depth, treeStyle?, bw?, bh?, palette?,
+//           pyrSize?, pyrR?, pyrG?, pyrB?, builtin?, userAdded?, toggleKey?, label }
 
-const userObjects = [];           // { id, type, label, xFrac, depth }
-let userObjIdCounter = 0;
+const sceneObjects = [
+  // Far-back pine trees
+  { id:  1, type:'tree',     treeStyle:'pine',  xFrac:0.10, depth:0.15, builtin:true, label:'Pine Tree' },
+  { id:  2, type:'tree',     treeStyle:'pine',  xFrac:0.90, depth:0.15, builtin:true, label:'Pine Tree' },
+  // Pyramid
+  { id:  3, type:'pyramid',  xFrac:0.15, depth:0.28, pyrSize:40, pyrR:210,pyrG:185,pyrB:130, builtin:true, toggleKey:'pyramid', label:'Pyramid' },
+  // Buildings
+  { id:  4, type:'building', xFrac:0.30, depth:0.35, bw:125,bh:260, palette:{base:[232,141, 79],win:[255,224,178]}, builtin:true, label:'Building' },
+  { id:  5, type:'building', xFrac:0.52, depth:0.40, bw:150,bh:360, palette:{base:[ 91,141,190],win:[187,222,251]}, builtin:true, label:'Building' },
+  { id:  6, type:'building', xFrac:0.72, depth:0.36, bw:110,bh:220, palette:{base:[229,115,115],win:[255,205,210]}, builtin:true, label:'Building' },
+  // Mid-ground round trees
+  { id:  7, type:'tree',     treeStyle:'round', xFrac:0.20, depth:0.38, builtin:true, label:'Round Tree' },
+  { id:  8, type:'tree',     treeStyle:'round', xFrac:0.83, depth:0.38, builtin:true, label:'Round Tree' },
+  // Lampposts
+  { id:  9, type:'lamppost', xFrac:0.12, depth:0.42, builtin:true, toggleKey:'lamppost', label:'Lamppost' },
+  { id: 10, type:'lamppost', xFrac:0.43, depth:0.48, builtin:true, toggleKey:'lamppost', label:'Lamppost' },
+  { id: 11, type:'lamppost', xFrac:0.63, depth:0.44, builtin:true, toggleKey:'lamppost', label:'Lamppost' },
+  { id: 12, type:'lamppost', xFrac:0.88, depth:0.41, builtin:true, toggleKey:'lamppost', label:'Lamppost' },
+  // Bench & Person
+  { id: 13, type:'bench',    xFrac:0.65, depth:0.52, builtin:true, toggleKey:'bench',    label:'Bench' },
+  { id: 14, type:'person',   xFrac:0.50, depth:0.55, builtin:true, toggleKey:'person',   label:'Person' },
+  // Foreground trees
+  { id: 15, type:'tree',     treeStyle:'pine',  xFrac:0.06, depth:0.62, builtin:true, label:'Pine Tree' },
+  { id: 16, type:'tree',     treeStyle:'round', xFrac:0.40, depth:0.58, builtin:true, label:'Round Tree' },
+  { id: 17, type:'tree',     treeStyle:'pine',  xFrac:0.60, depth:0.60, builtin:true, label:'Pine Tree' },
+  { id: 18, type:'tree',     treeStyle:'round', xFrac:0.95, depth:0.63, builtin:true, label:'Round Tree' },
+];
+let sceneObjIdCounter = 18;
+let draggingSceneObj = null; // the scene object currently being dragged
 
 const shapeSelect = document.getElementById('shapeSelect');
-const addObjBtn = document.getElementById('addObjBtn');
+const addObjBtn   = document.getElementById('addObjBtn');
 const userObjList = document.getElementById('userObjList');
 const userObjCount = document.getElementById('userObjCount');
 
-// Random colour palette for user buildings/pyramids
 const buildingPalettes = [
-  { base: [180,140,200], win: [220,200,240] },   // lilac
-  { base: [140,180,160], win: [200,230,210] },   // sage green
-  { base: [200,170,120], win: [240,220,180] },   // tan
-  { base: [160,160,200], win: [210,210,240] },   // periwinkle
-  { base: [200,150,150], win: [240,210,210] },   // dusty rose
+  { base:[180,140,200], win:[220,200,240] },
+  { base:[140,180,160], win:[200,230,210] },
+  { base:[200,170,120], win:[240,220,180] },
+  { base:[160,160,200], win:[210,210,240] },
+  { base:[200,150,150], win:[240,210,210] },
 ];
 
 function addUserObject() {
-  const type = shapeSelect.value;
-  const id = ++userObjIdCounter;
-
-  // Place at a random x between 10%–90% of screen and depth 0.30–0.58
+  const shapeType = shapeSelect.value;
+  const id = ++sceneObjIdCounter;
   const xFrac = 0.10 + Math.random() * 0.80;
   const depth = 0.30 + Math.random() * 0.28;
-
-  const labels = {
-    cone: 'Cone (Pine)', sphere: 'Sphere (Round Tree)',
-    rectangular_prism: 'Rect. Prism (Building)', pyramid: 'Pyramid',
-    cylinder: 'Cylinder (Lamppost)', person: 'Person', bench: 'Bench'
-  };
-
-  // Pick random palette for applicable types
   const palette = buildingPalettes[Math.floor(Math.random() * buildingPalettes.length)];
-
-  // Pre-compute random dimensions at creation time (not per-frame)
   const bw = 90 + Math.random() * 60;
   const bh = 180 + Math.random() * 160;
   const pyrSize = 30 + Math.random() * 20;
-
-  userObjects.push({ id, type, label: labels[type], xFrac, depth, palette, bw, bh, pyrSize });
-  // Sort by depth so farther objects draw first
-  userObjects.sort((a, b) => a.depth - b.depth);
-
+  const typeMap  = { cone:'tree', sphere:'tree', rectangular_prism:'building', pyramid:'pyramid', cylinder:'lamppost', person:'person', bench:'bench' };
+  const labelMap = { cone:'Cone (Pine Tree)', sphere:'Sphere (Round Tree)', rectangular_prism:'Rect. Prism (Building)', pyramid:'Pyramid', cylinder:'Cylinder (Lamppost)', person:'Person', bench:'Bench' };
+  sceneObjects.push({
+    id, type: typeMap[shapeType], treeStyle: shapeType === 'cone' ? 'pine' : 'round',
+    label: labelMap[shapeType], xFrac, depth, palette, bw, bh, pyrSize,
+    pyrR: palette.base[0], pyrG: palette.base[1], pyrB: palette.base[2],
+    userAdded: true,
+  });
+  sceneObjects.sort((a, b) => a.depth - b.depth);
   renderUserObjList();
   draw();
 }
 
 function removeUserObject(id) {
-  const idx = userObjects.findIndex(o => o.id === id);
-  if (idx !== -1) userObjects.splice(idx, 1);
-  renderUserObjList();
-  draw();
-}
-
-function clearAllUserObjects() {
-  userObjects.length = 0;
+  const idx = sceneObjects.findIndex(o => o.id === id && o.userAdded);
+  if (idx !== -1) sceneObjects.splice(idx, 1);
   renderUserObjList();
   draw();
 }
 
 function renderUserObjList() {
-  userObjList.innerHTML = userObjects.map(o =>
+  const added = sceneObjects.filter(o => o.userAdded);
+  userObjList.innerHTML = added.map(o =>
     '<div class="user-obj-item">' +
       '<span>' + o.label + '</span>' +
       '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove">&times;</button>' +
     '</div>'
   ).join('');
-  const n = userObjects.length;
+  const n = added.length;
   userObjCount.textContent = n > 0 ? n + ' added object' + (n > 1 ? 's' : '') + ' (max 12)' : '';
 }
 
 addObjBtn.addEventListener('click', () => {
-  if (userObjects.length >= 12) return; // cap for performance
+  if (sceneObjects.filter(o => o.userAdded).length >= 12) return;
   addUserObject();
 });
 
-// Draw a user object based on its type
-function drawUserObject(obj, shadowDir, shadowLen, light) {
+// ---- Hit testing ----
+function getObjHitBounds(obj) {
+  switch (obj.type) {
+    case 'tree':     return obj.treeStyle === 'pine' ? { hw:28, ht:135 } : { hw:48, ht:100 };
+    case 'building': return { hw: obj.bw * 0.55, ht: obj.bh };
+    case 'pyramid':  return { hw: obj.pyrSize * 1.4, ht: obj.pyrSize * 1.8 };
+    case 'lamppost': return { hw:22, ht:125 };
+    case 'bench':    return { hw:50, ht:42 };
+    case 'person':   return { hw:22, ht:100 };
+    default:         return { hw:35, ht:70 };
+  }
+}
+function hitTestSceneObj(obj, px, py) {
+  if (obj.toggleKey && !objVisible[obj.toggleKey]) return false;
+  const cx = W * obj.xFrac, baseY = perspY(obj.depth), scale = perspScale(obj.depth);
+  const { hw, ht } = getObjHitBounds(obj);
+  return px >= cx - hw*scale && px <= cx + hw*scale && py >= baseY - ht*scale && py <= baseY + 8*scale;
+}
+
+// ---- Drag indicator ----
+function drawDragIndicator(obj) {
+  const cx = W * obj.xFrac, baseY = perspY(obj.depth), scale = perspScale(obj.depth);
+  ctx.save();
+  const g = ctx.createRadialGradient(cx, baseY, 0, cx, baseY, 42*scale);
+  g.addColorStop(0, 'rgba(255,255,255,0.30)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(cx, baseY, 42*scale, 13*scale, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.80)';
+  ctx.lineWidth = Math.max(1.5, 2*scale); ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.ellipse(cx, baseY, 30*scale, 9*scale, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+}
+
+// ---- Draw one scene object (skip if its toggle is off) ----
+function drawSceneObject(obj, shadowDir, shadowLen, light) {
+  if (obj.toggleKey && !objVisible[obj.toggleKey]) return;
   const cx = W * obj.xFrac;
   switch (obj.type) {
-    case 'cone':
-      draw3DTree(cx, obj.depth, 'pine', shadowDir, shadowLen, light);
-      break;
-    case 'sphere':
-      draw3DTree(cx, obj.depth, 'round', shadowDir, shadowLen, light);
-      break;
-    case 'rectangular_prism': {
+    case 'tree':
+      draw3DTree(cx, obj.depth, obj.treeStyle, shadowDir, shadowLen, light); break;
+    case 'building': {
       const p = obj.palette;
-      draw3DBuilding(cx, obj.depth, obj.bw, obj.bh, p.base[0], p.base[1], p.base[2], p.win[0], p.win[1], p.win[2], shadowDir, shadowLen, light);
-      break;
+      draw3DBuilding(cx, obj.depth, obj.bw, obj.bh, p.base[0],p.base[1],p.base[2], p.win[0],p.win[1],p.win[2], shadowDir, shadowLen, light); break;
     }
-    case 'pyramid': {
-      const p = obj.palette;
-      drawPyramid(cx, obj.depth, obj.pyrSize, p.base[0], p.base[1], p.base[2], shadowDir, shadowLen, light);
-      break;
-    }
-    case 'cylinder':
-      drawLamppost(cx, obj.depth, shadowDir, shadowLen, light);
-      break;
-    case 'person':
-      drawPerson(cx, obj.depth, shadowDir, shadowLen, light);
-      break;
+    case 'pyramid':
+      drawPyramid(cx, obj.depth, obj.pyrSize, obj.pyrR, obj.pyrG, obj.pyrB, shadowDir, shadowLen, light); break;
+    case 'lamppost':
+      drawLamppost(cx, obj.depth, shadowDir, shadowLen, light); break;
     case 'bench':
-      drawBench(cx, obj.depth, shadowDir, shadowLen, light);
-      break;
+      drawBench(cx, obj.depth, shadowDir, shadowLen, light); break;
+    case 'person':
+      drawPerson(cx, obj.depth, shadowDir, shadowLen, light); break;
   }
+  if (obj === draggingSceneObj) drawDragIndicator(obj);
 }
 
 // ============================================================
@@ -533,10 +602,22 @@ function drawUserObject(obj, shadowDir, shadowLen, light) {
 // ============================================================
 
 function getLightInfo(sunPos) {
-  const intensity = Math.sin(sunAngle);
-  const sunNormX = Math.cos(sunAngle);
-  const warmth = 1 - intensity;
-  return { intensity, sunNormX, warmth };
+  const isNight = sunAngle > Math.PI && sunAngle < 2 * Math.PI;
+  // During night use moonlight: moon traverses opposite arc
+  const moonAngle = sunAngle - Math.PI; // 0..π during night
+  const dayIntensity = Math.max(0, Math.sin(sunAngle));
+  const moonIntensity = isNight ? Math.max(0, Math.sin(moonAngle)) * 0.15 : 0;
+  const intensity = isNight ? moonIntensity : dayIntensity;
+  // sunNormX: direction light comes from (same formula for sun and moon — both use same ellipse)
+  const sunNormX = Math.cos(isNight ? moonAngle : sunAngle);
+  const warmth = isNight ? 0 : (1 - dayIntensity);
+  // Smooth night factor 0 (day) → 1 (deep night)
+  const tCycle = sunAngle / (2 * Math.PI);
+  let nightFactor = 0;
+  if (tCycle > 0.58 && tCycle < 0.92) nightFactor = 1;
+  else if (tCycle >= 0.5 && tCycle <= 0.58) nightFactor = (tCycle - 0.5) / 0.08;
+  else if (tCycle >= 0.92 && tCycle < 1.0) nightFactor = 1 - (tCycle - 0.92) / 0.08;
+  return { intensity, sunNormX, warmth, isNight, nightFactor, moonAngle };
 }
 
 function litColor(r, g, b, normalX, normalY, light) {
@@ -565,13 +646,18 @@ function specularHighlight(normalX, normalY, light, shininess) {
 // ============================================================
 
 function getShadowParams(angle) {
-  const sunH = Math.sin(angle);
+  const isNight = angle > Math.PI && angle < 2 * Math.PI;
+  const effectiveAngle = isNight ? angle - Math.PI : angle; // moon follows opposite arc (0..π)
+  const sunH = Math.sin(effectiveAngle);
   const maxLen = W * 0.55;
   const cosH = Math.sqrt(Math.max(0, 1 - sunH * sunH));
   const cot = cosH / Math.max(0.13, sunH);
   let sLen = maxLen * Math.min(1, cot * 0.46);
   sLen = Math.max(sLen, W * 0.012);
-  const sDir = Math.cos(angle);
+  // Night shadows are faint (moonlight is dim)
+  if (isNight) sLen *= 0.35;
+  // Same direction formula for sun and moon — both traverse east→west on same ellipse
+  const sDir = Math.cos(effectiveAngle);
   return { shadowDir: sDir, shadowLen: sLen };
 }
 
@@ -585,25 +671,156 @@ function perspScale(depth) { return 0.30 + depth * 0.85; }
 // SKY
 // ============================================================
 function getSkyGradient(a) {
-  const t = a / Math.PI;
+  const t = a / (2 * Math.PI); // 0=6AM, 0.5=6PM, 1.0=6AM next day
+  function l3(a,b,f) { return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
+  function rgb(c) { return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')'; }
+
+  // Day palettes (t: 0 → 0.5)
   const dawn =    { top: [45,30,80],   mid: [220,120,70],  bot: [245,180,100] };
   const morn =    { top: [80,150,230],  mid: [140,200,250], bot: [200,230,255] };
   const noon =    { top: [50,130,230],  mid: [120,190,250], bot: [180,220,255] };
   const eve  =    { top: [80,150,230],  mid: [140,200,250], bot: [200,230,255] };
-  const dusk =    { top: [50,25,70],    mid: [200,100,60],  bot: [240,160,80] };
-
-  function l3(a,b,f) { return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
-  function rgb(c) { return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')'; }
+  const dusk =    { top: [50,25,70],    mid: [200,100,60],  bot: [240,160,80]  };
+  // Night palettes (t: 0.5 → 1.0)
+  const nightIn = { top: [10,10,35],   mid: [15,12,45],    bot: [25,18,55]    }; // just after dusk
+  const midnight= { top: [2,2,12],     mid: [4,4,18],      bot: [8,6,25]      }; // deepest dark
+  const preDawn = { top: [20,15,50],   mid: [35,20,60],    bot: [60,30,70]    }; // pre-dawn glow
+  const dawn2   = dawn; // cycle back to dawn
 
   let top, mid, bot;
-  if (t<0.15) { const f=t/0.15; top=l3(dawn.top,morn.top,f); mid=l3(dawn.mid,morn.mid,f); bot=l3(dawn.bot,morn.bot,f); }
-  else if (t<0.5) { const f=(t-0.15)/0.35; top=l3(morn.top,noon.top,f); mid=l3(morn.mid,noon.mid,f); bot=l3(morn.bot,noon.bot,f); }
-  else if (t<0.85) { const f=(t-0.5)/0.35; top=l3(noon.top,eve.top,f); mid=l3(noon.mid,eve.mid,f); bot=l3(noon.bot,eve.bot,f); }
-  else { const f=(t-0.85)/0.15; top=l3(eve.top,dusk.top,f); mid=l3(eve.mid,dusk.mid,f); bot=l3(eve.bot,dusk.bot,f); }
+  if (t < 0.075) {
+    const f = t / 0.075;
+    top=l3(dawn.top,morn.top,f); mid=l3(dawn.mid,morn.mid,f); bot=l3(dawn.bot,morn.bot,f);
+  } else if (t < 0.25) {
+    const f = (t-0.075)/0.175;
+    top=l3(morn.top,noon.top,f); mid=l3(morn.mid,noon.mid,f); bot=l3(morn.bot,noon.bot,f);
+  } else if (t < 0.425) {
+    const f = (t-0.25)/0.175;
+    top=l3(noon.top,eve.top,f); mid=l3(noon.mid,eve.mid,f); bot=l3(noon.bot,eve.bot,f);
+  } else if (t < 0.5) {
+    const f = (t-0.425)/0.075;
+    top=l3(eve.top,dusk.top,f); mid=l3(eve.mid,dusk.mid,f); bot=l3(eve.bot,dusk.bot,f);
+  } else if (t < 0.58) {
+    const f = (t-0.5)/0.08;
+    top=l3(dusk.top,nightIn.top,f); mid=l3(dusk.mid,nightIn.mid,f); bot=l3(dusk.bot,nightIn.bot,f);
+  } else if (t < 0.75) {
+    const f = (t-0.58)/0.17;
+    top=l3(nightIn.top,midnight.top,f); mid=l3(nightIn.mid,midnight.mid,f); bot=l3(nightIn.bot,midnight.bot,f);
+  } else if (t < 0.875) {
+    // hold at midnight
+    top=midnight.top; mid=midnight.mid; bot=midnight.bot;
+  } else if (t < 0.94) {
+    const f = (t-0.875)/0.065;
+    top=l3(midnight.top,preDawn.top,f); mid=l3(midnight.mid,preDawn.mid,f); bot=l3(midnight.bot,preDawn.bot,f);
+  } else {
+    const f = (t-0.94)/0.06;
+    top=l3(preDawn.top,dawn2.top,f); mid=l3(preDawn.mid,dawn2.mid,f); bot=l3(preDawn.bot,dawn2.bot,f);
+  }
 
   const g = ctx.createLinearGradient(0, 0, 0, horizonY);
   g.addColorStop(0, rgb(top)); g.addColorStop(0.5, rgb(mid)); g.addColorStop(1, rgb(bot));
   return g;
+}
+
+// ============================================================
+// STARS
+// ============================================================
+const starField = (function() {
+  const stars = [];
+  const rng = (seed) => { let s = seed; return () => { s = (s*9301+49297)%233280; return s/233280; }; };
+  const r = rng(42);
+  for (let i = 0; i < 130; i++) {
+    stars.push({ x: r(), y: r() * 0.92, size: 0.5 + r() * 2.0, phase: r() * Math.PI * 2 });
+  }
+  return stars;
+})();
+
+function drawStars(a) {
+  const t = a / (2 * Math.PI);
+  // fade in after dusk (t≈0.5), fade out before dawn (t≈0.95)
+  let starFade = 0;
+  if (t > 0.52 && t < 0.60) starFade = (t - 0.52) / 0.08;
+  else if (t >= 0.60 && t <= 0.92) starFade = 1;
+  else if (t > 0.92 && t < 0.98) starFade = 1 - (t - 0.92) / 0.06;
+  if (starFade <= 0) return;
+
+  ctx.save();
+  const now = Date.now();
+  for (const s of starField) {
+    const twinkle = 0.45 + 0.55 * Math.sin(now / 900 + s.phase);
+    const alpha = starFade * twinkle;
+    const sx = s.x * W;
+    const sy = s.y * horizonY;
+    // glow halo
+    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.size * 3.5);
+    glow.addColorStop(0, `rgba(220,230,255,${alpha * 0.5})`);
+    glow.addColorStop(1, 'rgba(220,230,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sx, sy, s.size * 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    // core dot
+    ctx.fillStyle = `rgba(240,245,255,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, s.size * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ============================================================
+// MOON
+// ============================================================
+function drawMoon(a) {
+  // Moon is opposite sun: visible when a ∈ (π, 2π)
+  if (a <= Math.PI + 0.08 || a >= 2 * Math.PI - 0.08) return;
+  const moonAngle = a - Math.PI; // maps π→2π to 0→π (rises east, sets west)
+  const mx = arcCX - Math.cos(moonAngle) * arcRX;
+  const my = arcCY - Math.sin(moonAngle) * arcRY;
+  if (my >= horizonY) return; // below horizon
+
+  // fade in/out near horizon
+  const t = a / (2 * Math.PI);
+  let moonFade = 1;
+  if (t < 0.54) moonFade = (t - 0.50) / 0.04;
+  else if (t > 0.96) moonFade = 1 - (t - 0.96) / 0.04;
+  moonFade = Math.max(0, Math.min(1, moonFade));
+
+  const r = Math.min(W, H) * 0.038;
+  ctx.save();
+  ctx.globalAlpha = moonFade;
+
+  // soft glow
+  const halo = ctx.createRadialGradient(mx, my, r * 0.5, mx, my, r * 3.5);
+  halo.addColorStop(0, 'rgba(200,210,255,0.18)');
+  halo.addColorStop(1, 'rgba(200,210,255,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(mx, my, r * 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // moon body + crescent, clipped to moon circle
+  ctx.beginPath();
+  ctx.arc(mx, my, r, 0, Math.PI * 2);
+  ctx.clip();
+
+  const moonGrad = ctx.createRadialGradient(mx - r*0.2, my - r*0.2, r*0.1, mx, my, r);
+  moonGrad.addColorStop(0, '#f0f4ff');
+  moonGrad.addColorStop(0.6, '#d8e0f0');
+  moonGrad.addColorStop(1, '#b0bcd8');
+  ctx.fillStyle = moonGrad;
+  ctx.beginPath();
+  ctx.arc(mx, my, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // crescent shadow overlay — offset circle, clipped to moon
+  const shadowX = mx + r * 0.45;
+  ctx.fillStyle = 'rgba(5,8,30,0.82)';
+  ctx.beginPath();
+  ctx.arc(shadowX, my, r * 0.92, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 // ============================================================
@@ -637,6 +854,46 @@ function drawSunRays(sunPos, light) {
     ctx.beginPath();
     ctx.moveTo(sunPos.x, sunPos.y);
     ctx.lineTo(sunPos.x + dx * rayLen, sunPos.y + dy * rayLen);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ============================================================
+// MOON RAYS (ray-tracing effect from moonlight)
+// ============================================================
+function drawMoonRays(light) {
+  if (!light.isNight || light.nightFactor <= 0) return;
+  const mA = light.moonAngle;
+  if (mA <= 0.05 || mA >= Math.PI - 0.05) return;
+  const mx = arcCX - Math.cos(mA) * arcRX;
+  const my = arcCY - Math.sin(mA) * arcRY;
+  if (my >= horizonY) return;
+
+  ctx.save();
+  const moonHeight = Math.sin(mA); // 0 at rise/set, 1 at midnight
+  const rayCount = 10;
+  const spread = Math.PI * 0.38;
+  const startAngle = Math.PI / 2 - spread / 2;
+  // Rays are faint blue-white; scale with moon height and nightFactor
+  const baseAlpha = light.nightFactor * (0.018 + moonHeight * 0.022);
+
+  for (let i = 0; i < rayCount; i++) {
+    const t = i / (rayCount - 1);
+    const angle = startAngle + t * spread;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const rayLen = H * 0.92;
+    const sway = Math.sin(Date.now() / 3500 + i * 1.3) * 0.004;
+    const grad = ctx.createLinearGradient(mx, my, mx + dx * rayLen, my + dy * rayLen);
+    grad.addColorStop(0,   `rgba(200,215,255,${(baseAlpha * 1.4 + sway).toFixed(4)})`);
+    grad.addColorStop(0.25, `rgba(200,215,255,${(baseAlpha * 0.7).toFixed(4)})`);
+    grad.addColorStop(1,   'rgba(200,215,255,0)');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 4 + Math.sin(Date.now() / 2500 + i) * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.lineTo(mx + dx * rayLen, my + dy * rayLen);
     ctx.stroke();
   }
   ctx.restore();
@@ -888,20 +1145,44 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
     for (let c = 0; c < cols; c++) {
       const wx = x + gapX + c * (winW + gapX);
       const wy = topY + 10 * scale + gapY + r * (winH + gapY);
-      const winLit = litColor(winR, winG, winB, -0.2, 0, light);
-      ctx.fillStyle = winLit;
-      ctx.fillRect(wx, wy, winW, winH);
 
-      const winSpec = specularHighlight(-0.2, 0.3, light, 20);
-      if (winSpec > 0.03) {
-        ctx.save(); ctx.globalAlpha = winSpec * 1.5;
-        const wg = ctx.createLinearGradient(wx, wy, wx + winW, wy + winH);
-        wg.addColorStop(0, 'rgba(255,255,200,0.9)');
-        wg.addColorStop(0.5, 'rgba(255,255,255,0.4)');
-        wg.addColorStop(1, 'rgba(255,255,200,0)');
-        ctx.fillStyle = wg;
+      if (light.nightFactor > 0) {
+        // Night: windows glow warm yellow/amber
+        ctx.save();
+        ctx.fillStyle = `rgb(255,220,100)`;
+        ctx.globalAlpha = light.nightFactor * 0.92;
         ctx.fillRect(wx, wy, winW, winH);
         ctx.restore();
+        // Bloom — soft warm halo spilling from each window
+        ctx.save();
+        const bloom = ctx.createRadialGradient(wx + winW/2, wy + winH/2, 0, wx + winW/2, wy + winH/2, winW * 2.2);
+        bloom.addColorStop(0, `rgba(255,200,60,${light.nightFactor * 0.18})`);
+        bloom.addColorStop(1, 'rgba(255,180,40,0)');
+        ctx.fillStyle = bloom;
+        ctx.fillRect(wx - winW * 1.2, wy - winH * 1.2, winW * 3.4, winH * 3.4);
+        ctx.restore();
+        // Day windows still show through at partial dusk
+        if (light.nightFactor < 1) {
+          const winLit = litColor(winR, winG, winB, -0.2, 0, light);
+          ctx.save(); ctx.globalAlpha = 1 - light.nightFactor;
+          ctx.fillStyle = winLit; ctx.fillRect(wx, wy, winW, winH);
+          ctx.restore();
+        }
+      } else {
+        // Day: normal lit window color
+        const winLit = litColor(winR, winG, winB, -0.2, 0, light);
+        ctx.fillStyle = winLit;
+        ctx.fillRect(wx, wy, winW, winH);
+        const winSpec = specularHighlight(-0.2, 0.3, light, 20);
+        if (winSpec > 0.03) {
+          ctx.save(); ctx.globalAlpha = winSpec * 1.5;
+          const wg = ctx.createLinearGradient(wx, wy, wx + winW, wy + winH);
+          wg.addColorStop(0, 'rgba(255,255,200,0.9)');
+          wg.addColorStop(0.5, 'rgba(255,255,255,0.4)');
+          wg.addColorStop(1, 'rgba(255,255,200,0)');
+          ctx.fillStyle = wg; ctx.fillRect(wx, wy, winW, winH);
+          ctx.restore();
+        }
       }
 
       ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.8;
@@ -1263,17 +1544,46 @@ function drawLamppost(cx, baseDepth, shadowDir, shadowLen, light) {
   const lampCY = poleTopY + 1.5 * scale;
   draw3DSphere(lampCX, lampCY, lampR, 240, 230, 180, light);
 
-  // Glow effect (subtle)
+  // Glow halo (always present, brighter at night)
   ctx.save();
-  const glowAlpha = Math.max(0.05, 0.2 - light.intensity * 0.15);
-  const glowGrad = ctx.createRadialGradient(lampCX, lampCY, lampR * 0.5, lampCX, lampCY, lampR * 3);
-  glowGrad.addColorStop(0, 'rgba(255,240,180,' + glowAlpha + ')');
-  glowGrad.addColorStop(1, 'rgba(255,240,180,0)');
+  const glowAlpha = Math.max(0.05, 0.15 - light.intensity * 0.1) + light.nightFactor * 0.35;
+  const glowGrad = ctx.createRadialGradient(lampCX, lampCY, lampR * 0.5, lampCX, lampCY, lampR * 4);
+  glowGrad.addColorStop(0, `rgba(255,240,160,${glowAlpha})`);
+  glowGrad.addColorStop(1, 'rgba(255,240,160,0)');
   ctx.fillStyle = glowGrad;
   ctx.beginPath();
-  ctx.arc(lampCX, lampCY, lampR * 3, 0, Math.PI * 2);
+  ctx.arc(lampCX, lampCY, lampR * 4, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+
+  // Night: downward light cone + ground pool
+  if (light.nightFactor > 0) {
+    const coneH = poleH * 0.75;
+    const coneW = lampR * 7;
+    ctx.save();
+    // Cone beam
+    const coneGrad = ctx.createLinearGradient(lampCX, lampCY, lampCX, lampCY + coneH);
+    coneGrad.addColorStop(0,   `rgba(255,230,120,${light.nightFactor * 0.38})`);
+    coneGrad.addColorStop(0.6, `rgba(255,220,100,${light.nightFactor * 0.12})`);
+    coneGrad.addColorStop(1,   'rgba(255,210,80,0)');
+    ctx.fillStyle = coneGrad;
+    ctx.beginPath();
+    ctx.moveTo(lampCX, lampCY);
+    ctx.lineTo(lampCX - coneW / 2, lampCY + coneH);
+    ctx.lineTo(lampCX + coneW / 2, lampCY + coneH);
+    ctx.closePath();
+    ctx.fill();
+    // Ground pool (elliptical warm light)
+    const poolY = lampCY + coneH;
+    const poolGrad = ctx.createRadialGradient(lampCX, poolY, 0, lampCX, poolY, coneW * 0.65);
+    poolGrad.addColorStop(0, `rgba(255,225,100,${light.nightFactor * 0.28})`);
+    poolGrad.addColorStop(1, 'rgba(255,210,80,0)');
+    ctx.fillStyle = poolGrad;
+    ctx.beginPath();
+    ctx.ellipse(lampCX, poolY, coneW * 0.6, coneW * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // Label: "Cylinder" on pole
   ctx.save();
@@ -1294,6 +1604,58 @@ function drawLamppost(cx, baseDepth, shadowDir, shadowLen, light) {
   ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
   ctx.strokeText('Sphere', lampCX, lampCY - lampR - 5 * scale);
   ctx.fillText('Sphere', lampCX, lampCY - lampR - 5 * scale);
+  ctx.restore();
+}
+
+// Draws ONLY the lamppost light emission (cone + pool + halo) — called AFTER the night overlay
+// so artificial light punches through the darkness.
+function drawLampostNightLight(cx, baseDepth, light) {
+  if (light.nightFactor <= 0) return;
+  const scale = perspScale(baseDepth);
+  const baseY = perspY(baseDepth);
+  const poleH = 100 * scale;
+  const lampR = 10 * scale;
+  const poleTopY = baseY - poleH;
+  const armLen = 18 * scale;
+  const lampCX = cx + armLen;
+  const lampCY = poleTopY + 1.5 * scale;
+  const coneH = poleH * 0.75;
+  const coneW = lampR * 7;
+  const nf = light.nightFactor;
+
+  ctx.save();
+  // Lamp halo (strong glow around the bulb itself)
+  const halo = ctx.createRadialGradient(lampCX, lampCY, lampR * 0.2, lampCX, lampCY, lampR * 5.5);
+  halo.addColorStop(0,   `rgba(255,245,170,${nf * 0.75})`);
+  halo.addColorStop(0.4, `rgba(255,230,120,${nf * 0.30})`);
+  halo.addColorStop(1,   'rgba(255,220,80,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(lampCX, lampCY, lampR * 5.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Downward cone beam
+  const coneGrad = ctx.createLinearGradient(lampCX, lampCY, lampCX, lampCY + coneH);
+  coneGrad.addColorStop(0,   `rgba(255,235,130,${nf * 0.52})`);
+  coneGrad.addColorStop(0.55,`rgba(255,220,100,${nf * 0.18})`);
+  coneGrad.addColorStop(1,   'rgba(255,210,80,0)');
+  ctx.fillStyle = coneGrad;
+  ctx.beginPath();
+  ctx.moveTo(lampCX, lampCY);
+  ctx.lineTo(lampCX - coneW / 2, lampCY + coneH);
+  ctx.lineTo(lampCX + coneW / 2, lampCY + coneH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ground pool
+  const poolY = lampCY + coneH;
+  const poolGrad = ctx.createRadialGradient(lampCX, poolY, 0, lampCX, poolY, coneW * 0.7);
+  poolGrad.addColorStop(0, `rgba(255,228,100,${nf * 0.45})`);
+  poolGrad.addColorStop(1, 'rgba(255,210,80,0)');
+  ctx.fillStyle = poolGrad;
+  ctx.beginPath();
+  ctx.ellipse(lampCX, poolY, coneW * 0.62, coneW * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -1558,12 +1920,26 @@ function drawLabels() {
 }
 
 function drawArcGuide() {
-  ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1.5; ctx.setLineDash([8,8]);
+  ctx.save();
+  // Day arc (above horizon): solid dashed white
+  ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1.5; ctx.setLineDash([8,8]);
   ctx.beginPath();
   for(let a=0.05;a<=Math.PI-0.05;a+=0.05){
     const p=getSunPos(a); if(a<0.1)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);
   }
-  ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+  ctx.stroke();
+  // Moon arc guide (above horizon during night): faint silver dashes
+  ctx.strokeStyle='rgba(180,190,255,0.10)'; ctx.lineWidth=1; ctx.setLineDash([5,10]);
+  ctx.beginPath();
+  for(let a=Math.PI+0.05;a<=2*Math.PI-0.05;a+=0.05){
+    const moonA = a - Math.PI;
+    const mx = arcCX - Math.cos(moonA) * arcRX;
+    const my = arcCY - Math.sin(moonA) * arcRY;
+    if(my >= horizonY) continue;
+    if(a<Math.PI+0.1)ctx.moveTo(mx,my);else ctx.lineTo(mx,my);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
 }
 
 // ============================================================
@@ -1577,6 +1953,9 @@ function draw() {
   const {shadowDir,shadowLen} = getShadowParams(sunAngle);
   const light = getLightInfo(sunPos);
 
+  const isNight = sunAngle > Math.PI && sunAngle < 2 * Math.PI;
+  const tCycle = sunAngle / (2 * Math.PI);
+
   // Sky
   ctx.fillStyle = getSkyGradient(sunAngle);
   ctx.fillRect(0, 0, W, horizonY);
@@ -1584,18 +1963,27 @@ function draw() {
   // Arc guide
   drawArcGuide();
 
-  // Sun rays
-  drawSunRays(sunPos, light);
+  // Sun rays (day only, sun above horizon)
+  if (!isNight) drawSunRays(sunPos, light);
 
-  // Clouds
-  const cloudDrift = (sunAngle / Math.PI - 0.5) * W * 0.14;
-  const cloudRise = (1 - light.intensity) * H * 0.04;
-  drawCloud(W*0.18 + cloudDrift * 0.9, H*0.12 + cloudRise, 1.2, light);
-  drawCloud(W*0.52 + cloudDrift * 1.0, H*0.08 + cloudRise * 0.7, 0.9, light);
-  drawCloud(W*0.82 + cloudDrift * 1.1, H*0.15 + cloudRise * 0.9, 1.0, light);
+  // Clouds (fade out during deep night)
+  const cloudOpacity = tCycle > 0.58 && tCycle < 0.92
+    ? 0 : tCycle > 0.52 && tCycle <= 0.58
+    ? 1 - (tCycle - 0.52) / 0.06 : tCycle >= 0.92 && tCycle < 0.97
+    ? (tCycle - 0.92) / 0.05 : 1;
+  if (cloudOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = cloudOpacity;
+    const cloudDrift = (sunAngle / Math.PI - 0.5) * W * 0.14;
+    const cloudRise = (1 - light.intensity) * H * 0.04;
+    drawCloud(W*0.18 + cloudDrift * 0.9, H*0.12 + cloudRise, 1.2, light);
+    drawCloud(W*0.52 + cloudDrift * 1.0, H*0.08 + cloudRise * 0.7, 0.9, light);
+    drawCloud(W*0.82 + cloudDrift * 1.1, H*0.15 + cloudRise * 0.9, 1.0, light);
+    ctx.restore();
+  }
 
-  // Sun
-  drawSun(sunPos.x, sunPos.y);
+  // Sun (day only — above horizon)
+  if (!isNight) drawSun(sunPos.x, sunPos.y);
 
   // Hills
   drawHills(light);
@@ -1606,100 +1994,138 @@ function draw() {
   // Labels
   drawLabels();
 
-  // --- Scene objects (back to front by depth) ---
-
-  // Far back row (depth ~0.15)
-  draw3DTree(W*0.1, 0.15, 'pine', shadowDir, shadowLen, light);
-  draw3DTree(W*0.9, 0.15, 'pine', shadowDir, shadowLen, light);
-
-  // Pyramid (depth 0.28) — behind buildings
-  if (objVisible.pyramid) {
-    drawPyramid(W * 0.15, 0.28, 40, 210, 185, 130, shadowDir, shadowLen, light);
+  // --- Scene objects (all drawn back-to-front; array kept sorted by depth) ---
+  for (const obj of sceneObjects) {
+    drawSceneObject(obj, shadowDir, shadowLen, light);
   }
 
-  // Buildings row (depth ~0.35–0.40)
-  draw3DBuilding(W*0.30, 0.35, 125, 260, 232,141,79, 255,224,178, shadowDir, shadowLen, light);
-  draw3DBuilding(W*0.52, 0.40, 150, 360, 91,141,190, 187,222,251, shadowDir, shadowLen, light);
-  draw3DBuilding(W*0.72, 0.36, 110, 220, 229,115,115, 255,205,210, shadowDir, shadowLen, light);
-
-  // Mid-ground row (depth ~0.38)
-  draw3DTree(W*0.20, 0.38, 'round', shadowDir, shadowLen, light);
-  draw3DTree(W*0.83, 0.38, 'round', shadowDir, shadowLen, light);
-
-  // Lamppost (depth 0.48) — in front of buildings
-  if (objVisible.lamppost) {
-    drawLamppost(W * 0.43, 0.48, shadowDir, shadowLen, light);
+  // Night darkness overlay — FULL canvas so there is no visible seam at horizon
+  if (isNight) {
+    const nightDepth = tCycle > 0.58 && tCycle < 0.92 ? 0.48 :
+      tCycle >= 0.5 && tCycle <= 0.58 ? (tCycle - 0.5) / 0.08 * 0.48 :
+      tCycle >= 0.92 && tCycle < 1.0 ? (1 - (tCycle - 0.92) / 0.08) * 0.48 : 0;
+    ctx.save();
+    ctx.globalAlpha = nightDepth;
+    ctx.fillStyle = 'rgba(0,4,18,1)';
+    ctx.fillRect(0, 0, W, H); // full canvas — sky and ground unified
+    ctx.restore();
   }
 
-  // Bench (depth 0.52) — foreground area
-  if (objVisible.bench) {
-    drawBench(W * 0.65, 0.52, shadowDir, shadowLen, light);
+  // ---- Render above the overlay: stars, moon, rays, lamppost light ----
+  // These must be drawn last so they punch through the darkness.
+  if (isNight) {
+    drawStars(sunAngle);
+    drawMoon(sunAngle);
+    drawMoonRays(light);
+    // Lamppost light cones and ground pools above overlay
+    for (const obj of sceneObjects) {
+      if (obj.type === 'lamppost' && (!obj.toggleKey || objVisible[obj.toggleKey])) {
+        drawLampostNightLight(W * obj.xFrac, obj.depth, light);
+      }
+    }
   }
-
-  // Person (depth 0.55) — clearly in front for scale
-  if (objVisible.person) {
-    drawPerson(W * 0.50, 0.55, shadowDir, shadowLen, light);
-  }
-
-  // User-added objects (sorted by depth, integrated with scene)
-  for (const obj of userObjects) {
-    drawUserObject(obj, shadowDir, shadowLen, light);
-  }
-
-  // Foreground trees (depth ~0.58–0.63)
-  draw3DTree(W*0.06, 0.62, 'pine', shadowDir, shadowLen, light);
-  draw3DTree(W*0.40, 0.58, 'round', shadowDir, shadowLen, light);
-  draw3DTree(W*0.60, 0.60, 'pine', shadowDir, shadowLen, light);
-  draw3DTree(W*0.95, 0.63, 'round', shadowDir, shadowLen, light);
 
   // UI
   timeLabel.textContent = timeStr + ' \u2014 ' + period;
   observationBox.innerHTML = getObservation(sunAngle, hours);
+
+  // Keep stars twinkling during night when not auto-playing
+  if (isNight && !autoPlaying) startTwinkle();
+  else if (!isNight) stopTwinkle();
 }
 
 // ============================================================
 // INTERACTION
 // ============================================================
-function angleFromPointer(px,py){
-  const dx=px-arcCX, dy=py-arcCY;
-  let a=Math.atan2(-dy/arcRY,-dx/arcRX);
-  if(a<0.05)a=0.05; if(a>Math.PI-0.05)a=Math.PI-0.05;
+// Full-circle angle [0.05, 2π-0.05]: sun drag across horizon into night.
+function angleFromPointerFull(px, py) {
+  const dx = px - arcCX, dy = py - arcCY;
+  let a = Math.atan2(-dy / arcRY, -dx / arcRX);
+  if (a < 0) a += 2 * Math.PI;
+  return Math.max(0.05, Math.min(2 * Math.PI - 0.05, a));
+}
+
+// Upper-half angle [0.05, π-0.05]: moon drag above horizon.
+function angleFromPointer(px, py) {
+  const dx = px - arcCX, dy = py - arcCY;
+  let a = Math.atan2(-dy / arcRY, -dx / arcRX);
+  if (a < 0.05) a = 0.05;
+  if (a > Math.PI - 0.05) a = Math.PI - 0.05;
   return a;
 }
-function isNearSun(px,py){
-  const s=getSunPos(sunAngle), dx=px-s.x, dy=py-s.y, hr=Math.min(W,H)*0.07;
-  return dx*dx+dy*dy<hr*hr;
+
+// Returns { what:'sun'|'moon'|'sceneObj', obj? } or null.
+// Sun/moon take priority; scene objects tested front-to-back (highest depth first).
+function findDraggableAtPointer(px, py) {
+  const hr2 = Math.pow(Math.min(W, H) * 0.07, 2);
+  if (sunAngle < Math.PI) {
+    const s = getSunPos(sunAngle);
+    if ((px-s.x)**2 + (py-s.y)**2 < hr2) return { what:'sun' };
+  }
+  if (sunAngle > Math.PI && sunAngle < 2 * Math.PI) {
+    const mA = sunAngle - Math.PI;
+    const mx = arcCX - Math.cos(mA)*arcRX, my = arcCY - Math.sin(mA)*arcRY;
+    if (my < horizonY && (px-mx)**2 + (py-my)**2 < hr2) return { what:'moon' };
+  }
+  for (let i = sceneObjects.length - 1; i >= 0; i--) {
+    if (hitTestSceneObj(sceneObjects[i], px, py)) return { what:'sceneObj', obj:sceneObjects[i] };
+  }
+  return null;
+}
+function isNearSun(px,py){ const h=findDraggableAtPointer(px,py); return h&&h.what==='sun'; }
+
+function applyDrag(px, py) {
+  if (draggingWhat === 'sun') {
+    sunAngle = angleFromPointerFull(px, py);
+    syncSliderToAngle();
+  } else if (draggingWhat === 'moon') {
+    sunAngle = angleFromPointer(px, py) + Math.PI;
+    syncSliderToAngle();
+  } else if (draggingWhat === 'sceneObj' && draggingSceneObj) {
+    draggingSceneObj.xFrac = Math.max(0.01, Math.min(0.99, px / W));
+    const rawDepth = (py - horizonY) / (H - horizonY);
+    draggingSceneObj.depth = Math.max(0.05, Math.min(0.92, rawDepth));
+    sceneObjects.sort((a, b) => a.depth - b.depth);
+  }
+  draw();
 }
 
-canvas.addEventListener('mousedown',e=>{
-  if(isNearSun(e.clientX,e.clientY)){
-    dragging=true; stopAutoPlay();
-    instructionsEl.style.opacity='0'; draw();
+canvas.addEventListener('mousedown', e => {
+  const hit = findDraggableAtPointer(e.clientX, e.clientY);
+  if (hit) {
+    draggingWhat = hit.what; draggingSceneObj = hit.obj || null; dragging = true;
+    if (hit.what === 'sun' || hit.what === 'moon') stopAutoPlay();
+    instructionsEl.style.opacity = '0';
+    canvas.style.cursor = 'grabbing'; draw();
   }
 });
-window.addEventListener('mousemove',e=>{
-  if(dragging){
-    sunAngle=angleFromPointer(e.clientX,e.clientY);
-    syncSliderToAngle(); draw();
+window.addEventListener('mousemove', e => {
+  if (draggingWhat) {
+    applyDrag(e.clientX, e.clientY);
+    canvas.style.cursor = 'grabbing';
+  } else {
+    const hit = findDraggableAtPointer(e.clientX, e.clientY);
+    canvas.style.cursor = hit ? 'grab' : 'default';
   }
 });
-window.addEventListener('mouseup',()=>{dragging=false;});
+window.addEventListener('mouseup', () => {
+  dragging = false; draggingWhat = null; draggingSceneObj = null;
+  canvas.style.cursor = 'default';
+});
 
-canvas.addEventListener('touchstart',e=>{
-  const t=e.touches[0];
-  if(isNearSun(t.clientX,t.clientY)){
-    dragging=true; stopAutoPlay();
-    instructionsEl.style.opacity='0'; e.preventDefault(); draw();
+canvas.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  const hit = findDraggableAtPointer(t.clientX, t.clientY);
+  if (hit) {
+    draggingWhat = hit.what; draggingSceneObj = hit.obj || null; dragging = true;
+    if (hit.what === 'sun' || hit.what === 'moon') stopAutoPlay();
+    instructionsEl.style.opacity = '0'; e.preventDefault(); draw();
   }
-},{passive:false});
-window.addEventListener('touchmove',e=>{
-  if(dragging){
-    const t=e.touches[0];
-    sunAngle=angleFromPointer(t.clientX,t.clientY);
-    syncSliderToAngle(); draw(); e.preventDefault();
-  }
-},{passive:false});
-window.addEventListener('touchend',()=>{dragging=false;});
+}, {passive: false});
+window.addEventListener('touchmove', e => {
+  if (draggingWhat) { applyDrag(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
+}, {passive: false});
+window.addEventListener('touchend', () => { dragging = false; draggingWhat = null; draggingSceneObj = null; });
 
 // ============================================================
 // INITIALIZE
