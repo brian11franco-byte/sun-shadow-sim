@@ -5,14 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Sun Movement & Shadow Formation — 3D Shapes</title>
 <style>
+  /* ── Reset & Base ── */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden; touch-action: none;
     user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
     height: 100vh; width: 100vw;
   }
   canvas { display: block; width: 100vw; height: 100vh; }
+
+  /* ── Global Button Touch Optimisation ── */
+  button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
 
   #timeLabel {
     position: fixed; top: 14px; left: 14px;
@@ -192,6 +200,481 @@
 
   /* ── Panel scrollable on small screens ── */
   #controlPanel { max-height: calc(100vh - 90px); overflow-y: auto; }
+
+  /* ══════════════════════════════════════════
+     ASSESSMENT MODULE
+  ══════════════════════════════════════════ */
+  #assessmentBtn {
+    position: fixed; bottom: 20px; right: 20px; z-index: 30;
+    padding: 13px 22px; border: none; border-radius: 50px;
+    background: linear-gradient(135deg, #6a3de8, #3d8ef0);
+    color: #fff; font-size: clamp(13px, 2.5vw, 16px); font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 20px rgba(90,60,200,0.5);
+    display: flex; align-items: center; gap: 8px;
+    transition: transform 0.18s, box-shadow 0.18s;
+    font-family: inherit;
+  }
+  #assessmentBtn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(90,60,200,0.65); }
+  #assessmentBtn svg { flex-shrink: 0; }
+
+  /* Left-side panel — canvas stays visible & interactive on the right */
+  #assessmentOverlay {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: min(380px, 92vw);
+    z-index: 100;
+    background: rgba(8, 6, 24, 0.72);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border-right: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 6px 0 40px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+    transform: translateX(-110%);
+    transition: transform 0.38s cubic-bezier(.4,0,.2,1);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    pointer-events: none;
+  }
+  #assessmentOverlay.visible {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  /* Card is now just the inner padding wrapper — no extra border/bg */
+  .assess-card {
+    width: 100%;
+    padding: 22px 22px 36px;
+    flex: 1;
+  }
+
+  /* Header row */
+  .assess-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .assess-title {
+    font-size: clamp(18px, 4vw, 26px); font-weight: 800; color: #fff;
+    letter-spacing: -0.3px;
+  }
+  #closeAssessBtn {
+    background: rgba(255,255,255,0.08); border: none; color: #aaa;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s; flex-shrink: 0;
+    font-family: inherit;
+  }
+  #closeAssessBtn:hover { background: rgba(229,115,115,0.25); color: #e57373; }
+
+  /* Progress bar */
+  .assess-progress-wrap {
+    margin: 14px 0 20px; display: flex; align-items: center; gap: 10px;
+  }
+  .assess-progress-bar {
+    flex: 1; height: 8px; background: rgba(255,255,255,0.1);
+    border-radius: 4px; overflow: hidden;
+  }
+  .assess-progress-fill {
+    height: 100%; border-radius: 4px; width: 0%;
+    background: linear-gradient(90deg, #6a3de8, #3d8ef0);
+    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+  }
+  .assess-progress-text {
+    font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.45);
+    white-space: nowrap;
+  }
+
+  /* Part divider */
+  .assess-part-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: rgba(255,255,255,0.35);
+    margin-bottom: 18px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* Individual question */
+  .assess-question {
+    display: none;
+  }
+  .assess-question.active { display: block; }
+
+  .q-number {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: rgba(255,255,255,0.35); margin-bottom: 8px;
+  }
+  .q-text {
+    font-size: clamp(16px, 3vw, 21px); font-weight: 600; color: #e8e8f0;
+    line-height: 1.6; margin-bottom: 16px;
+  }
+  .q-text .blank-placeholder {
+    display: inline-block; min-width: 90px; border-bottom: 2px solid rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.2); font-style: italic; text-align: center;
+    padding: 0 6px; margin: 0 4px; vertical-align: bottom; font-size: 0.9em;
+  }
+
+  /* Answer input */
+  .assess-input-wrap { position: relative; margin-bottom: 18px; }
+  .assess-input {
+    width: 100%; padding: 14px 18px; border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.15); outline: none;
+    background: rgba(255,255,255,0.06); color: #fff;
+    font-size: clamp(16px, 3vw, 20px); font-weight: 600;
+    font-family: inherit; transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+  }
+  .assess-input:focus { border-color: rgba(106,61,232,0.7); background: rgba(255,255,255,0.09); }
+  .assess-input.correct { border-color: #66bb6a; background: rgba(102,187,106,0.12); color: #a5d6a7; }
+  .assess-input.wrong   { border-color: #ef5350; background: rgba(239,83,80,0.12); color: #ef9a9a; }
+  .assess-input:disabled { cursor: default; }
+
+  /* Feedback strip */
+  .assess-feedback {
+    min-height: 28px; font-size: clamp(13px, 2.5vw, 16px); font-weight: 600;
+    border-radius: 8px; padding: 6px 14px; margin-bottom: 18px;
+    text-align: center; opacity: 0; transition: opacity 0.2s;
+  }
+  .assess-feedback.show { opacity: 1; }
+  .assess-feedback.correct { background: rgba(102,187,106,0.15); color: #81c784; }
+  .assess-feedback.wrong   { background: rgba(239,83,80,0.15); color: #e57373; }
+
+  /* Hint / correct answer */
+  .assess-hint {
+    font-size: clamp(12px, 2vw, 14px); color: rgba(255,255,255,0.4);
+    text-align: center; margin-bottom: 4px; min-height: 20px;
+  }
+
+  /* Navigation buttons */
+  .assess-nav {
+    display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;
+  }
+  .assess-nav-btn {
+    padding: 12px 26px; border: none; border-radius: 12px;
+    font-size: clamp(14px, 2.5vw, 16px); font-weight: 700;
+    cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+  }
+  .assess-nav-btn:hover { transform: translateY(-1px); }
+  #checkAnswerBtn {
+    background: linear-gradient(135deg, #6a3de8, #3d8ef0); color: #fff;
+    box-shadow: 0 4px 16px rgba(90,60,200,0.35);
+  }
+  #nextQuestionBtn {
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75);
+    display: none;
+  }
+  #nextQuestionBtn.visible { display: block; }
+
+  /* Number input for math part */
+  .assess-input.num-input { max-width: 180px; margin: 0 auto; display: block; }
+
+  /* ── Results Screen ── */
+  #assessResults {
+    display: none; text-align: center; padding: 10px 0;
+  }
+  #assessResults.show { display: block; }
+
+  .results-emoji {
+    font-size: 64px; margin-bottom: 12px; display: block;
+    animation: popIn 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.3); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .results-score {
+    font-size: clamp(42px, 10vw, 72px); font-weight: 900;
+    background: linear-gradient(135deg, #6a3de8, #3d8ef0);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 4px;
+  }
+  .results-label {
+    font-size: clamp(15px, 3vw, 20px); color: rgba(255,255,255,0.55);
+    margin-bottom: 24px;
+  }
+  .results-message {
+    font-size: clamp(16px, 3vw, 22px); font-weight: 700; color: #e8e8f0;
+    margin-bottom: 10px;
+  }
+  .results-sub {
+    font-size: clamp(13px, 2.5vw, 16px); color: rgba(255,255,255,0.45);
+    margin-bottom: 32px; line-height: 1.6;
+  }
+
+  /* Review list */
+  .results-review {
+    text-align: left; margin-bottom: 28px;
+  }
+  .results-review-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: rgba(255,255,255,0.3);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .review-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: clamp(12px, 2.2vw, 14px);
+  }
+  .review-item:last-child { border-bottom: none; }
+  .review-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .review-q { color: rgba(255,255,255,0.6); flex: 1; line-height: 1.5; }
+  .review-ans { font-weight: 700; }
+  .review-ans.ok  { color: #81c784; }
+  .review-ans.bad { color: #e57373; }
+  .review-correct { color: rgba(255,255,255,0.35); font-size: 0.9em; margin-left: 4px; }
+
+  /* ── Part Selection Screen ── */
+  #partSelectScreen { display: none; }
+
+  .part-select-intro {
+    font-size: clamp(13px, 2.5vw, 15px); color: rgba(255,255,255,0.5);
+    text-align: center; line-height: 1.6; margin-bottom: 20px;
+  }
+  .part-choice-cards {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .part-choice-card {
+    display: flex; flex-direction: column; align-items: flex-start;
+    gap: 3px; width: 100%; padding: 18px 20px;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 16px; cursor: pointer; text-align: left;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    font-family: inherit; position: relative; overflow: hidden;
+  }
+  .part-choice-card:hover {
+    background: rgba(106,61,232,0.18);
+    border-color: rgba(106,61,232,0.55);
+    transform: translateY(-2px);
+  }
+  .part-choice-card.done-card {
+    border-color: rgba(102,187,106,0.4);
+    background: rgba(102,187,106,0.07);
+  }
+  .part-choice-card.active-card {
+    border-color: rgba(61,142,240,0.6);
+    background: rgba(61,142,240,0.1);
+  }
+  .part-choice-icon { font-size: 26px; margin-bottom: 4px; }
+  .part-choice-name {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: rgba(255,255,255,0.35);
+  }
+  .part-choice-subject {
+    font-size: clamp(16px, 3vw, 19px); font-weight: 800; color: #e8e8f0;
+  }
+  .part-choice-desc {
+    font-size: clamp(12px, 2vw, 13px); color: rgba(255,255,255,0.45);
+  }
+  .part-choice-count {
+    margin-top: 8px; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+  }
+  .part-choice-card.done-card .part-choice-count {
+    background: rgba(102,187,106,0.2); color: #81c784;
+  }
+  .part-choice-card.active-card .part-choice-count {
+    background: rgba(61,142,240,0.2); color: #90caf9;
+  }
+  /* Badge overlay for done state */
+  .part-done-badge {
+    position: absolute; top: 14px; right: 16px;
+    font-size: 20px;
+  }
+
+  /* Resume banner shown inside question area */
+  #resumeBanner {
+    display: none; background: rgba(61,142,240,0.12);
+    border: 1px solid rgba(61,142,240,0.3); border-radius: 10px;
+    padding: 8px 14px; margin-bottom: 14px;
+    font-size: 12px; color: #90caf9; font-weight: 600;
+    text-align: center;
+  }
+
+  /* Restart button */
+  #restartAssessBtn {
+    padding: 14px 40px; border: none; border-radius: 50px;
+    background: linear-gradient(135deg, #6a3de8, #3d8ef0);
+    color: #fff; font-size: clamp(15px, 3vw, 18px); font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 20px rgba(90,60,200,0.4);
+    transition: transform 0.18s, box-shadow 0.18s; font-family: inherit;
+  }
+  #restartAssessBtn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(90,60,200,0.55); }
+
+  /* ── Back-to-parts navigation ── */
+  .assess-back-row {
+    margin-bottom: 10px;
+  }
+  #backToPartsBtn {
+    background: none; border: none;
+    color: rgba(255,255,255,0.38); font-size: 12px; font-weight: 600;
+    cursor: pointer; padding: 4px 0; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 5px;
+    transition: color 0.18s, transform 0.15s;
+    letter-spacing: 0.3px;
+  }
+  #backToPartsBtn:hover {
+    color: rgba(255,255,255,0.78);
+    transform: translateX(-2px);
+  }
+  #backToPartsBtn svg { flex-shrink: 0; }
+
+  /* ════════════════════════════════════════════════════
+     RESPONSIVE — Small phones ≤ 480px
+  ════════════════════════════════════════════════════ */
+  @media (max-width: 480px) {
+
+    /* HUD — Time label: tighter on phones */
+    #timeLabel {
+      top: 10px; left: 10px;
+      padding: 7px 16px;
+      font-size: clamp(13px, 4.5vw, 18px);
+      max-width: calc(100vw - 72px); /* don't reach hamburger */
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* Shape label: hide on very small screens — too crowded */
+    #shapeLabel { display: none; }
+
+    /* Instructions: tighter */
+    #instructions {
+      top: 56px; left: 10px;
+      font-size: clamp(11px, 3vw, 13px);
+      padding: 6px 14px;
+      max-width: calc(100vw - 72px);
+    }
+
+    /* Observation box: full-width at bottom, leave room for quiz button */
+    #observationBox {
+      bottom: 74px; /* above quiz button */
+      left: 10px; right: 10px;
+      transform: none;
+      max-width: 100%;
+      font-size: clamp(12px, 3.5vw, 16px);
+      padding: 10px 16px;
+      border-radius: 14px;
+    }
+
+    /* Hamburger: slightly larger tap target */
+    #hamburger {
+      top: 10px; right: 10px;
+      width: 48px; height: 48px;
+    }
+
+    /* Control panel: full-width on phones */
+    #controlPanel {
+      top: 68px; right: 0; left: 0;
+      width: 100%;
+      max-width: 100%;
+      border-radius: 0 0 20px 20px;
+      max-height: 60vh;
+      transform: translateY(calc(-100% - 20px));
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.3s;
+    }
+    #controlPanel.open {
+      transform: translateY(0);
+    }
+
+    /* Assessment button: icon-only pill on phones */
+    #assessmentBtn {
+      bottom: 14px; right: 14px;
+      padding: 14px;
+      border-radius: 50%;
+      min-width: 52px; min-height: 52px;
+      gap: 0;
+    }
+    #assessmentBtn .btn-label {
+      display: none; /* hide text */
+    }
+
+    /* Assessment overlay: full-screen on phones */
+    #assessmentOverlay {
+      width: 100vw;
+      border-right: none;
+      box-shadow: none;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Assessment card: tighter padding */
+    .assess-card { padding: 18px 16px 28px; }
+
+    /* Nav buttons: full-width on phones */
+    .assess-nav {
+      flex-direction: column-reverse;
+      gap: 10px;
+    }
+    .assess-nav-btn {
+      width: 100%;
+      min-height: 50px;
+      font-size: 15px;
+    }
+
+    /* Part-select heading */
+    .part-select-intro { font-size: 13px; }
+
+    /* Part cards: keep stacked, but compact */
+    .part-choice-card { padding: 14px 16px; }
+    .part-choice-icon { font-size: 22px; }
+
+    /* Results: tighter */
+    .results-emoji { font-size: 52px; }
+    .results-score { font-size: clamp(36px, 12vw, 56px); }
+  }
+
+  /* ════════════════════════════════════════════════════
+     RESPONSIVE — Tablets & larger phones ≤ 768px
+  ════════════════════════════════════════════════════ */
+  @media (max-width: 768px) and (min-width: 481px) {
+
+    #observationBox {
+      bottom: 80px;
+      max-width: 80vw;
+      font-size: clamp(13px, 2.8vw, 18px);
+    }
+
+    /* Assessment overlay: 75vw on small tablet, full canvas still peeking through */
+    #assessmentOverlay { width: min(340px, 80vw); }
+
+    /* Nav buttons: larger tap targets */
+    .assess-nav-btn { min-height: 48px; }
+  }
+
+  /* ════════════════════════════════════════════════════
+     RESPONSIVE — Inside assessment overlay > 600px wide
+     (side-by-side part cards when overlay is wide enough)
+  ════════════════════════════════════════════════════ */
+  @media (min-width: 769px) {
+    /* Part cards: side by side on desktop */
+    .part-choice-cards {
+      flex-direction: row;
+    }
+    .part-choice-card { flex: 1; }
+
+    /* Assessment button: full label visible */
+    #assessmentBtn .btn-label { display: inline; }
+  }
+
+  /* ════════════════════════════════════════════════════
+     SAFE AREA — Notched phones (iPhone X+, Android cutouts)
+  ════════════════════════════════════════════════════ */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    #assessmentOverlay {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    #assessmentBtn {
+      bottom: calc(14px + env(safe-area-inset-bottom));
+    }
+    #observationBox {
+      bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+    @media (max-width: 480px) {
+      #assessmentBtn {
+        bottom: calc(14px + env(safe-area-inset-bottom));
+      }
+      #observationBox {
+        bottom: calc(74px + env(safe-area-inset-bottom));
+      }
+    }
+  }
 </style>
 </head>
 <body>
@@ -260,6 +743,91 @@
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg>
       Auto-Play Full Day &amp; Night
     </button>
+  </div>
+</div>
+
+<!-- Assessment Launch Button -->
+<button id="assessmentBtn" aria-label="Take the quiz">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+  </svg>
+  <span class="btn-label">Take the Quiz</span>
+</button>
+
+<!-- Assessment Overlay -->
+<div id="assessmentOverlay" role="dialog" aria-modal="true" aria-label="Formative Assessment">
+  <div class="assess-card">
+
+    <!-- Header -->
+    <div class="assess-header">
+      <div class="assess-title" id="assessTitleText">Sun &amp; Shadows Quiz</div>
+      <button id="closeAssessBtn" aria-label="Close quiz">✕</button>
+    </div>
+
+    <!-- Progress bar (hidden on part-select screen) -->
+    <div class="assess-progress-wrap" id="progressWrap" style="display:none">
+      <div class="assess-progress-bar"><div class="assess-progress-fill" id="progressFill"></div></div>
+      <div class="assess-progress-text" id="progressText">1 / 20</div>
+    </div>
+
+    <!-- ① Part selection screen -->
+    <div id="partSelectScreen">
+      <div class="part-select-intro">Choose which part to start with.<br>You can do both — in any order!</div>
+      <div class="part-choice-cards">
+        <button class="part-choice-card" id="part1ChoiceBtn" aria-label="Start with Part 1 Science">
+          <span class="part-choice-icon">☀️</span>
+          <span class="part-choice-name">Part 1</span>
+          <span class="part-choice-subject">Science</span>
+          <span class="part-choice-desc">Sun Movement &amp; Shadows</span>
+          <span class="part-choice-count" id="p1status">10 questions</span>
+        </button>
+        <button class="part-choice-card" id="part2ChoiceBtn" aria-label="Start with Part 2 Mathematics">
+          <span class="part-choice-icon">📐</span>
+          <span class="part-choice-name">Part 2</span>
+          <span class="part-choice-subject">Mathematics</span>
+          <span class="part-choice-desc">3D Figures</span>
+          <span class="part-choice-count" id="p2status">10 questions</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ② Question area -->
+    <div id="assessQuestionArea" style="display:none">
+      <!-- Back navigation -->
+      <div class="assess-back-row">
+        <button id="backToPartsBtn" aria-label="Back to part selection">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Choose Part
+        </button>
+      </div>
+      <div class="assess-part-label" id="partLabel">Part 1 — Science: Sun Movement &amp; Shadows</div>
+      <div id="resumeBanner">Resuming where you left off…</div>
+      <div class="q-number" id="qNumber">Question 1</div>
+      <div class="q-text" id="qText"></div>
+      <div class="assess-input-wrap">
+        <input class="assess-input" id="assessInput" type="text" autocomplete="off"
+               autocorrect="off" autocapitalize="off" spellcheck="false"
+               placeholder="Type your answer…" aria-label="Your answer">
+      </div>
+      <div class="assess-feedback" id="assessFeedback"></div>
+      <div class="assess-hint" id="assessHint"></div>
+      <div class="assess-nav">
+        <button class="assess-nav-btn" id="checkAnswerBtn">Check Answer</button>
+        <button class="assess-nav-btn" id="nextQuestionBtn">Next →</button>
+      </div>
+    </div>
+
+    <!-- ③ Results screen -->
+    <div id="assessResults">
+      <span class="results-emoji" id="resultsEmoji">🌟</span>
+      <div class="results-score" id="resultsScore">20/20</div>
+      <div class="results-label">correct answers</div>
+      <div class="results-message" id="resultsMessage">Outstanding!</div>
+      <div class="results-sub" id="resultsSub">You know all about sun movement, shadows, and 3D shapes!</div>
+      <div class="results-review" id="reviewList"></div>
+      <button id="restartAssessBtn">Try Again</button>
+    </div>
+
   </div>
 </div>
 
@@ -2126,6 +2694,396 @@ window.addEventListener('touchmove', e => {
   if (draggingWhat) { applyDrag(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
 }, {passive: false});
 window.addEventListener('touchend', () => { dragging = false; draggingWhat = null; draggingSceneObj = null; });
+
+// ============================================================
+// FORMATIVE ASSESSMENT MODULE
+// ============================================================
+(function () {
+
+  // ── Question bank ──────────────────────────────────────────
+  const ALL_QUESTIONS = [
+    // Part 1 — Science (indices 0-9)
+    { part:1, type:'text',   before:'The sun appears to rise in the morning from the',                           after:'.',        answer:'east',      hint:'Think about where the sun is very early in the morning.' },
+    { part:1, type:'text',   before:'In the late afternoon, the sun appears to set in the',                      after:'.',        answer:'west',      hint:'It is the opposite direction from where it rises.' },
+    { part:1, type:'text',   before:'As the day goes on, the sun appears to move across the',                   after:'.',        answer:'sky',       hint:'Look up — where does the sun travel?' },
+    { part:1, type:'text',   before:'In the early morning, when the sun is low, shadows are very',              after:'.',        answer:'long',      hint:'When the sun is close to the horizon, shadows stretch out.' },
+    { part:1, type:'text',   before:'At noon, when the sun is directly above us, shadows are very',             after:'.',        answer:'short',     hint:'A high sun makes a small shadow directly below you.' },
+    { part:1, type:'text',   before:'In the late afternoon, as the sun gets lower again, shadows become',        after:' again.',  answer:'longer',    hint:'Shadows grow as the sun gets lower in the sky.' },
+    { part:1, type:'text',   before:'A shadow forms when a solid object',                                        after:' the light from the sun.', answer:'blocks', hint:'The object stops the light from passing through.' },
+    { part:1, type:'text',   before:'If the sun is shining from the East, your shadow will point to the',       after:'.',        answer:'west',      hint:'Shadows always point away from the light source.' },
+    { part:1, type:'text',   before:'Shadows always form on the',                                                after:' side of the light source.', answer:'opposite', hint:'Light travels in straight lines, so shadows form behind objects.' },
+    { part:1, type:'text',   before:'The length and',                                                            after:' of a shadow change throughout the day.', answer:'direction', hint:'There are two things about a shadow that change — length and …?' },
+    // Part 2 — Mathematics (indices 10-19)
+    { part:2, type:'text',   before:'A tall building looks like a 3D shape called a rectangular',                after:'.',        answer:'prism',     hint:'It has 6 rectangular faces.' },
+    { part:2, type:'number', before:'A rectangular prism, like a park bench or a building, has',                after:' flat faces.', answer:'6',     hint:'Count the top, bottom, front, back, left, and right sides.' },
+    { part:2, type:'text',   before:'The round light globe on top of a lamppost is shaped like a',               after:'.',        answer:'sphere',    hint:'It is perfectly round — like a ball.' },
+    { part:2, type:'number', before:'A sphere is perfectly round and has',                                       after:' vertices.', answer:'0',       hint:'A sphere has no corners or edges.' },
+    { part:2, type:'text',   before:'The straight, wooden trunk of a pine tree is shaped like a',                after:'.',        answer:'cylinder',  hint:'It has two circular flat faces and one curved surface.' },
+    { part:2, type:'number', before:'A cylinder, like a lamppost pole, has',                                     after:' flat circular faces.', answer:'2', hint:'One on top and one on the bottom.' },
+    { part:2, type:'text',   before:'The top green part of a pine tree is shaped like a',                        after:'.',        answer:'cone',      hint:'It has one circular base and comes to a point at the top.' },
+    { part:2, type:'number', before:'A cone has one flat circular face at the bottom and',                       after:' vertex at the top.', answer:'1', hint:'Just one sharp tip at the very top.' },
+    { part:2, type:'text',   before:'A tent structure with a square base and flat triangle sides meeting at the top is a square-based', after:'.', answer:'pyramid', hint:'Think of the great structures in Egypt.' },
+    { part:2, type:'number', before:'A square-based pyramid has a total of',                                     after:' vertices.', answer:'5',       hint:'4 corners at the base and 1 at the very top.' },
+  ];
+
+  const PART1_QS = ALL_QUESTIONS.filter(q => q.part === 1);
+  const PART2_QS = ALL_QUESTIONS.filter(q => q.part === 2);
+
+  // ── Session state ──────────────────────────────────────────
+  // orderedQuestions: the flat list in chosen order (part A then part B)
+  // currentQ: index into orderedQuestions
+  // userAnswers: parallel array {given, correct} | null
+  // partProgress: { 1: 'untouched'|'in-progress'|'done', 2: same }
+  // sessionStarted: whether a part has been chosen
+  // sessionDone: true after results screen shown — reset only on Try Again
+  let orderedQuestions = [];
+  let currentQ = 0;
+  let score = 0;
+  let answered = false;
+  let userAnswers = [];
+  let partProgress = { 1: 'untouched', 2: 'untouched' };
+  let sessionStarted = false;
+  let sessionDone = false;
+  let resuming = false; // flag: true when opening mid-session
+
+  // ── DOM ────────────────────────────────────────────────────
+  const overlay        = document.getElementById('assessmentOverlay');
+  const launchBtn      = document.getElementById('assessmentBtn');
+  const closeBtn       = document.getElementById('closeAssessBtn');
+  const progressWrap   = document.getElementById('progressWrap');
+  const progressFill   = document.getElementById('progressFill');
+  const progressText   = document.getElementById('progressText');
+  const partSelectScr  = document.getElementById('partSelectScreen');
+  const part1Btn       = document.getElementById('part1ChoiceBtn');
+  const part2Btn       = document.getElementById('part2ChoiceBtn');
+  const p1status       = document.getElementById('p1status');
+  const p2status       = document.getElementById('p2status');
+  const questionArea   = document.getElementById('assessQuestionArea');
+  const resumeBanner   = document.getElementById('resumeBanner');
+  const partLabel      = document.getElementById('partLabel');
+  const qNumber        = document.getElementById('qNumber');
+  const qText          = document.getElementById('qText');
+  const assessInput    = document.getElementById('assessInput');
+  const feedbackEl     = document.getElementById('assessFeedback');
+  const hintEl         = document.getElementById('assessHint');
+  const checkBtn       = document.getElementById('checkAnswerBtn');
+  const nextBtn        = document.getElementById('nextQuestionBtn');
+  const backToPartsBtn = document.getElementById('backToPartsBtn');
+  const resultsDiv     = document.getElementById('assessResults');
+  const resultsEmoji   = document.getElementById('resultsEmoji');
+  const resultsScore   = document.getElementById('resultsScore');
+  const resultsMsg     = document.getElementById('resultsMessage');
+  const resultsSub     = document.getElementById('resultsSub');
+  const reviewList     = document.getElementById('reviewList');
+  const restartBtn     = document.getElementById('restartAssessBtn');
+
+  // ── Helpers ────────────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function normalise(s) {
+    return String(s).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+  function isCorrect(given, q) {
+    const g = normalise(given), a = normalise(q.answer);
+    if (a === 'longer' && g === 'long') return true;
+    return g === a;
+  }
+
+  // ── Screen switcher ────────────────────────────────────────
+  function showScreen(which) {
+    // which: 'select' | 'question' | 'results'
+    // NOTE: partSelectScr has a CSS rule `display:none`, so we must use 'block'
+    // explicitly (not '') otherwise the stylesheet rule wins and it stays hidden.
+    partSelectScr.style.display  = which === 'select'   ? 'block' : 'none';
+    questionArea.style.display   = which === 'question' ? 'block' : 'none';
+    resultsDiv.classList.toggle('show', which === 'results');
+    progressWrap.style.display   = which === 'question' ? 'flex'  : 'none';
+  }
+
+  // ── Part choice card state ─────────────────────────────────
+  function updatePartCards() {
+    [part1Btn, part2Btn].forEach(btn => {
+      btn.classList.remove('done-card', 'active-card');
+      // remove any existing badge
+      const old = btn.querySelector('.part-done-badge');
+      if (old) old.remove();
+    });
+
+    [1, 2].forEach(p => {
+      const btn = p === 1 ? part1Btn : part2Btn;
+      const stat = p === 1 ? p1status : p2status;
+      const prog = partProgress[p];
+      if (prog === 'done') {
+        btn.classList.add('done-card');
+        stat.textContent = 'Completed ✓';
+        const badge = document.createElement('span');
+        badge.className = 'part-done-badge'; badge.textContent = '✅';
+        btn.appendChild(badge);
+      } else if (prog === 'in-progress') {
+        btn.classList.add('active-card');
+        // count answered so far
+        const qs = p === 1 ? PART1_QS : PART2_QS;
+        const done = orderedQuestions
+          .map((q, i) => ({ q, i }))
+          .filter(({ q, i }) => q.part === p && userAnswers[i] !== null).length;
+        stat.textContent = `In progress — ${done} / ${qs.length} done`;
+      } else {
+        stat.textContent = '10 questions';
+      }
+    });
+  }
+
+  // ── Choose which part to do first ─────────────────────────
+  function choosePart(firstPart) {
+    const secondPart = firstPart === 1 ? 2 : 1;
+
+    if (!sessionStarted) {
+      // Fresh start: build full ordered list
+      orderedQuestions = [
+        ...(firstPart === 1 ? PART1_QS : PART2_QS),
+        ...(firstPart === 1 ? PART2_QS : PART1_QS),
+      ];
+      userAnswers = new Array(orderedQuestions.length).fill(null);
+      currentQ = 0; score = 0; answered = false;
+      partProgress[firstPart] = 'in-progress';
+      partProgress[secondPart] = 'untouched';
+      sessionStarted = true;
+      resuming = false;
+    } else {
+      // Resume the chosen part — find first unanswered question of that part
+      const firstUnanswered = orderedQuestions.findIndex(
+        (q, i) => q.part === firstPart && userAnswers[i] === null
+      );
+      if (firstUnanswered === -1) {
+        // That part is already fully answered — jump to first unanswered of the other
+        const fallback = orderedQuestions.findIndex((q, i) => userAnswers[i] === null);
+        currentQ = fallback === -1 ? orderedQuestions.length - 1 : fallback;
+      } else {
+        currentQ = firstUnanswered;
+      }
+      partProgress[firstPart] = 'in-progress';
+      resuming = true;
+    }
+
+    showScreen('question');
+    renderQuestion(currentQ, resuming);
+    resuming = false;
+  }
+
+  // ── Render a question ──────────────────────────────────────
+  function renderQuestion(idx, showResume) {
+    const q = orderedQuestions[idx];
+    answered = false;
+
+    partLabel.textContent = q.part === 1
+      ? 'Part 1 — Science: Sun Movement & Shadows'
+      : 'Part 2 — Mathematics: 3D Figures';
+
+    // Position label within this part's questions
+    const partQs   = orderedQuestions.filter(x => x.part === q.part);
+    const posInPart = partQs.indexOf(q) + 1;
+    qNumber.textContent = `Question ${posInPart} of ${partQs.length}`;
+
+    qText.innerHTML =
+      escapeHtml(q.before) +
+      ' <span class="blank-placeholder">___</span> ' +
+      escapeHtml(q.after);
+
+    assessInput.value = '';
+    assessInput.disabled = false;
+    assessInput.className = 'assess-input' + (q.type === 'number' ? ' num-input' : '');
+    assessInput.type        = q.type === 'number' ? 'number' : 'text';
+    assessInput.inputMode   = q.type === 'number' ? 'numeric' : 'text';
+    assessInput.placeholder = q.type === 'number' ? 'Enter a number…' : 'Type your answer…';
+    if (q.type === 'number') assessInput.min = '0'; else assessInput.removeAttribute('min');
+
+    feedbackEl.textContent = ''; feedbackEl.className = 'assess-feedback';
+    hintEl.textContent = '';
+    checkBtn.style.display = '';
+    nextBtn.classList.remove('visible');
+    nextBtn.textContent = 'Next →';
+
+    // Resume banner
+    resumeBanner.style.display = showResume ? '' : 'none';
+
+    updateProgress(idx);
+    setTimeout(() => assessInput.focus(), 80);
+  }
+
+  function updateProgress(idx) {
+    const answered = userAnswers.filter(a => a !== null).length;
+    const pct = (answered / orderedQuestions.length) * 100;
+    progressFill.style.width = pct + '%';
+    progressText.textContent = `${answered} / ${orderedQuestions.length}`;
+  }
+
+  // ── Check answer ───────────────────────────────────────────
+  function checkAnswer() {
+    if (answered) return;
+    const q = orderedQuestions[currentQ];
+    const given = assessInput.value;
+    if (!given.trim()) {
+      assessInput.style.animation = 'none';
+      void assessInput.offsetHeight;
+      assessInput.style.animation = 'shake 0.3s ease';
+      return;
+    }
+    answered = true;
+    const correct = isCorrect(given, q);
+    userAnswers[currentQ] = { given: given.trim(), correct };
+    if (correct) score++;
+
+    assessInput.disabled = true;
+    assessInput.classList.add(correct ? 'correct' : 'wrong');
+
+    feedbackEl.className = 'assess-feedback show ' + (correct ? 'correct' : 'wrong');
+    feedbackEl.textContent = correct
+      ? ['Great job! ✓','Correct! ✓','Well done! ✓','Spot on! ✓'][Math.floor(Math.random()*4)]
+      : `Not quite. The answer is: ${q.answer}`;
+    if (!correct) hintEl.textContent = '💡 ' + q.hint;
+
+    checkBtn.style.display = 'none';
+    nextBtn.classList.add('visible');
+
+    // Update part progress
+    updatePartProgress();
+
+    // Is this the last unanswered question overall?
+    const allAnswered = userAnswers.every(a => a !== null);
+    if (allAnswered) nextBtn.textContent = 'See Results →';
+  }
+
+  function updatePartProgress() {
+    [1, 2].forEach(p => {
+      const indices = orderedQuestions.map((q,i) => q.part === p ? i : -1).filter(i => i >= 0);
+      const allDone = indices.every(i => userAnswers[i] !== null);
+      if (allDone) partProgress[p] = 'done';
+      else if (indices.some(i => userAnswers[i] !== null)) partProgress[p] = 'in-progress';
+    });
+  }
+
+  // ── Next question ──────────────────────────────────────────
+  function nextQuestion() {
+    const allAnswered = userAnswers.every(a => a !== null);
+    if (allAnswered) { showResults(); return; }
+
+    // Find next unanswered in same part first, then other part
+    const currentPart = orderedQuestions[currentQ].part;
+    let next = orderedQuestions.findIndex((q, i) => i > currentQ && q.part === currentPart && userAnswers[i] === null);
+    if (next === -1) {
+      // Part done — go to part selection so user consciously picks the next part
+      updatePartProgress();
+      showScreen('select');
+      updatePartCards();
+      return;
+    }
+    currentQ = next;
+    renderQuestion(currentQ, false);
+  }
+
+  // ── Results ────────────────────────────────────────────────
+  function showResults() {
+    sessionDone = true;
+    showScreen('results');
+    progressWrap.style.display = '';
+    progressFill.style.width = '100%';
+    progressText.textContent = `${orderedQuestions.length} / ${orderedQuestions.length}`;
+
+    resultsScore.textContent = `${score} / ${orderedQuestions.length}`;
+    const pct = score / orderedQuestions.length;
+    let emoji, msg, sub;
+    if      (pct === 1)   { emoji='🌟'; msg='Perfect Score!';     sub='Amazing! You understand sun movement, shadows, and 3D shapes perfectly!'; }
+    else if (pct >= 0.8)  { emoji='🎉'; msg='Outstanding!';       sub='Excellent work! Just a few things to review below.'; }
+    else if (pct >= 0.6)  { emoji='👍'; msg='Good effort!';       sub='You\'re on the right track. Review the missed questions and try again!'; }
+    else if (pct >= 0.4)  { emoji='📚'; msg='Keep practising!';   sub='Read through the simulation again and then retake the quiz.'; }
+    else                  { emoji='🌱'; msg='Keep going!';         sub='Have another explore of the simulation, then give the quiz another try.'; }
+    resultsEmoji.textContent = emoji;
+    resultsMsg.textContent   = msg;
+    resultsSub.textContent   = sub;
+
+    reviewList.innerHTML = '<div class="results-review-title">Your Answers</div>';
+    orderedQuestions.forEach((q, i) => {
+      const ua = userAnswers[i];
+      const ok = ua && ua.correct;
+      const given = ua ? ua.given : '—';
+      const item = document.createElement('div');
+      item.className = 'review-item';
+      item.innerHTML =
+        `<span class="review-icon">${ok ? '✅' : '❌'}</span>` +
+        `<span class="review-q">${escapeHtml(q.before)} <strong>___</strong> ${escapeHtml(q.after)}</span>` +
+        `<span class="review-ans ${ok ? 'ok' : 'bad'}">${escapeHtml(given)}` +
+          (!ok ? `<span class="review-correct"> (${escapeHtml(q.answer)})</span>` : '') +
+        `</span>`;
+      reviewList.appendChild(item);
+    });
+  }
+
+  // ── Full reset (only on Try Again after results shown) ─────
+  function fullReset() {
+    orderedQuestions = []; userAnswers = []; currentQ = 0;
+    score = 0; answered = false;
+    partProgress = { 1: 'untouched', 2: 'untouched' };
+    sessionStarted = false; sessionDone = false; resuming = false;
+    nextBtn.textContent = 'Next →';
+    progressFill.style.width = '0%';
+    progressWrap.style.display = 'none';
+    updatePartCards();
+    showScreen('select');
+  }
+
+  // ── Open / close panel ─────────────────────────────────────
+  function openOverlay() {
+    overlay.classList.add('visible');
+    if (!sessionStarted || sessionDone) {
+      // First open, or after results — show part selection
+      if (sessionDone) fullReset();
+      updatePartCards();
+      showScreen('select');
+    }
+    // else: mid-session — whatever screen is already showing stays visible
+  }
+  function closeOverlay() {
+    overlay.classList.remove('visible');
+  }
+
+  // ── Shake animation ────────────────────────────────────────
+  const shakeStyle = document.createElement('style');
+  shakeStyle.textContent =
+    `@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}`;
+  document.head.appendChild(shakeStyle);
+
+  // ── Event listeners ────────────────────────────────────────
+  launchBtn.addEventListener('click', openOverlay);
+  closeBtn.addEventListener('click', closeOverlay);
+  restartBtn.addEventListener('click', fullReset);
+
+  part1Btn.addEventListener('click', () => choosePart(1));
+  part2Btn.addEventListener('click', () => choosePart(2));
+
+  // Back to part selection — preserves all session state (answers, score, progress)
+  backToPartsBtn.addEventListener('click', () => {
+    updatePartProgress();
+    updatePartCards();
+    showScreen('select');
+  });
+
+  checkBtn.addEventListener('click', checkAnswer);
+  nextBtn.addEventListener('click', nextQuestion);
+
+  assessInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { if (!answered) checkAnswer(); else nextQuestion(); }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && overlay.classList.contains('visible')) closeOverlay();
+  });
+
+  // Init
+  updatePartCards();
+  showScreen('select');
+
+})();
 
 // ============================================================
 // INITIALIZE
