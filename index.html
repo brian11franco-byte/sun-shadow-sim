@@ -1582,6 +1582,16 @@ function drawMoonRays(light) {
 // ============================================================
 // CLOUDS
 // ============================================================
+// Five clouds drifting on gentle parallax (bigger = closer = faster).
+// Positions derive statelessly from animT, so there is no per-frame state.
+const clouds = [
+  { yFrac: 0.12, scale: 1.25, speed: 9,  off: 0.00 },
+  { yFrac: 0.07, scale: 0.90, speed: 13, off: 0.35 },
+  { yFrac: 0.16, scale: 1.05, speed: 7,  off: 0.60 },
+  { yFrac: 0.05, scale: 0.70, speed: 16, off: 0.80 },
+  { yFrac: 0.19, scale: 0.85, speed: 11, off: 0.15 },
+];
+
 function drawCloud(cx, cy, scale, light) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -1595,19 +1605,79 @@ function drawCloud(cx, cy, scale, light) {
   const bG = Math.min(255, 190 - w * 20);
   const bB = Math.min(255, 200 - w * 60);
 
-  const litSide = light.sunNormX > 0 ? -1 : 1;
-  const cloudGrad = ctx.createLinearGradient(litSide * -40, -18, litSide * 40, 12);
-  cloudGrad.addColorStop(0, 'rgba('+Math.round(tR)+','+Math.round(tG)+','+Math.round(tB)+',0.92)');
-  cloudGrad.addColorStop(1, 'rgba('+Math.round(bR)+','+Math.round(bG)+','+Math.round(bB)+',0.78)');
+  // Soft under-shade for volume
+  ctx.fillStyle = 'rgba(120,140,180,0.16)';
+  ctx.beginPath();
+  ctx.ellipse(2, 9, 34, 9, 0, 0, Math.PI*2);
+  ctx.fill();
 
+  const litSide = light.sunNormX > 0 ? -1 : 1;
+  const cloudGrad = ctx.createLinearGradient(litSide * -40, -22, litSide * 40, 12);
+  cloudGrad.addColorStop(0, 'rgba('+Math.round(tR)+','+Math.round(tG)+','+Math.round(tB)+',0.94)');
+  cloudGrad.addColorStop(1, 'rgba('+Math.round(bR)+','+Math.round(bG)+','+Math.round(bB)+',0.80)');
+
+  // Puffy top, flat-ish base
   ctx.fillStyle = cloudGrad;
   ctx.beginPath();
-  ctx.arc(0, 0, 25, 0, Math.PI*2);
-  ctx.arc(25, -5, 20, 0, Math.PI*2);
-  ctx.arc(-25, -3, 18, 0, Math.PI*2);
-  ctx.arc(12, -15, 18, 0, Math.PI*2);
-  ctx.arc(-10, -12, 20, 0, Math.PI*2);
+  ctx.arc(-30, -1, 15, 0, Math.PI*2);
+  ctx.arc(-14, -11, 19, 0, Math.PI*2);
+  ctx.arc(4, -15, 21, 0, Math.PI*2);
+  ctx.arc(21, -8, 17, 0, Math.PI*2);
+  ctx.arc(33, 0, 13, 0, Math.PI*2);
+  ctx.arc(9, -2, 20, 0, Math.PI*2);
+  ctx.arc(-9, 1, 17, 0, Math.PI*2);
+  ctx.rect(-32, -2, 66, 10);
   ctx.fill();
+  ctx.restore();
+}
+
+// ============================================================
+// BIRDS — small flocks crossing the sky by day
+// ============================================================
+let birdFlock = null;
+let nextFlockAt = 6;
+
+function updateAndDrawBirds(light) {
+  if (light.intensity < 0.25) { birdFlock = null; return; }
+  if (!birdFlock && animT >= nextFlockAt) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const n = 3 + Math.floor(Math.random() * 3);
+    const members = [];
+    for (let i = 0; i < n; i++) {
+      const rank = Math.ceil(i / 2);
+      const side = i % 2 === 1 ? 1 : -1;
+      members.push({ dx: -rank * 16 * dir, dy: side * rank * 8, fp: Math.random() * Math.PI * 2 });
+    }
+    birdFlock = {
+      dir, members,
+      speed: 40 + Math.random() * 25,
+      y: H * (0.08 + Math.random() * 0.2),
+      start: animT,
+    };
+  }
+  if (!birdFlock) return;
+  const f = birdFlock;
+  const t = animT - f.start;
+  const x = f.dir > 0 ? -70 + f.speed * t : W + 70 - f.speed * t;
+  if (x < -80 || x > W + 80) {
+    birdFlock = null;
+    nextFlockAt = animT + 18 + Math.random() * 12;
+    return;
+  }
+  const y = f.y + Math.sin(t * 0.7) * 12;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(40,45,60,0.75)';
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = 'round';
+  for (const m of f.members) {
+    const bx = x + m.dx, by = y + m.dy;
+    const flap = Math.sin(animT * 9 + m.fp) * 4;
+    ctx.beginPath();
+    ctx.moveTo(bx - 6, by - 2 + flap);
+    ctx.quadraticCurveTo(bx - 2, by + 1, bx, by);
+    ctx.quadraticCurveTo(bx + 2, by + 1, bx + 6, by - 2 + flap);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -2112,31 +2182,35 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
   drawContactAO(cx, baseY, trunkR * 2.4);
   draw3DCylinder(cx, trunkTopY, baseY, trunkR, 109, 76, 65, light);
 
+  // Gentle canopy sway (trunk and shadow stay put; ≤3px keeps the
+  // visual inside the drag hitbox)
+  const sway = Math.sin(animT * 1.4 + cx * 0.05) * 2.5 * scale;
+
   if (type === 'round') {
     const canopyCY = trunkTopY - canopyR * 0.55;
-    draw3DSphere(cx, canopyCY, canopyR, 56, 142, 60, light);
+    draw3DSphere(cx + sway, canopyCY, canopyR, 56, 142, 60, light);
     ctx.save();
     ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
-    ctx.strokeText('Sphere', cx, canopyCY-canopyR-5*scale);
-    ctx.fillText('Sphere', cx, canopyCY-canopyR-5*scale);
+    ctx.strokeText('Sphere', cx + sway, canopyCY-canopyR-5*scale);
+    ctx.fillText('Sphere', cx + sway, canopyCY-canopyR-5*scale);
     ctx.restore();
   } else {
     const coneBaseY = trunkTopY + 2 * scale;
     const coneTipY = trunkTopY - canopyR * 1.6;
-    draw3DCone(cx, coneTipY, coneBaseY, canopyR, 46, 125, 50, light);
+    draw3DCone(cx + sway * 0.6, coneTipY, coneBaseY, canopyR, 46, 125, 50, light);
     const c2BaseY = coneTipY + (coneBaseY-coneTipY)*0.45;
     const c2TipY = coneTipY - canopyR*0.5;
-    draw3DCone(cx, c2TipY, c2BaseY, canopyR*0.65, 56, 142, 60, light);
+    draw3DCone(cx + sway, c2TipY, c2BaseY, canopyR*0.65, 56, 142, 60, light);
     ctx.save();
     ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
-    ctx.strokeText('Cone', cx, c2TipY-5*scale);
-    ctx.fillText('Cone', cx, c2TipY-5*scale);
+    ctx.strokeText('Cone', cx + sway, c2TipY-5*scale);
+    ctx.fillText('Cone', cx + sway, c2TipY-5*scale);
     ctx.restore();
   }
 
@@ -2726,16 +2800,20 @@ function draw() {
   if (cloudOpacity > 0) {
     ctx.save();
     ctx.globalAlpha = cloudOpacity;
-    const cloudDrift = (sunAngle / Math.PI - 0.5) * W * 0.14;
     const cloudRise = (1 - light.intensity) * H * 0.04;
-    drawCloud(W*0.18 + cloudDrift * 0.9, H*0.12 + cloudRise, 1.2, light);
-    drawCloud(W*0.52 + cloudDrift * 1.0, H*0.08 + cloudRise * 0.7, 0.9, light);
-    drawCloud(W*0.82 + cloudDrift * 1.1, H*0.15 + cloudRise * 0.9, 1.0, light);
+    const span = W + 240;
+    for (const c of clouds) {
+      const x = ((c.off * span + animT * c.speed) % span + span) % span - 120;
+      drawCloud(x, H * c.yFrac + cloudRise * (0.6 + c.scale * 0.3), c.scale, light);
+    }
     ctx.restore();
   }
 
   // Sun (day only — above horizon)
   if (!isNight) drawSun(sunPos.x, sunPos.y, light);
+
+  // Birds (day only)
+  if (!isNight) updateAndDrawBirds(light);
 
   // Hills
   drawHills(light);
