@@ -897,7 +897,8 @@ function makeSprite(size, painter) {
   return c;
 }
 
-let starSprite = null, sunHaloSprite = null, aoSprite = null;
+let starSprite = null, sunHaloSprite = null, aoSprite = null,
+    moonHaloSprite = null, fireflySprite = null;
 function buildSprites() {
   sunHaloSprite = makeSprite(160, (g, s) => {
     const c = s / 2;
@@ -917,6 +918,22 @@ function buildSprites() {
     g.fillRect(0, 0, s, s);
     g.fillStyle = 'rgb(240,245,255)';
     g.beginPath(); g.arc(c, c, c * 0.2, 0, Math.PI * 2); g.fill();
+  });
+  moonHaloSprite = makeSprite(160, (g, s) => {
+    const c = s / 2;
+    const grad = g.createRadialGradient(c, c, s * 0.08, c, c, c);
+    grad.addColorStop(0, 'rgba(200,215,255,0.30)');
+    grad.addColorStop(0.4, 'rgba(190,205,255,0.12)');
+    grad.addColorStop(1, 'rgba(190,205,255,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, s, s);
+  });
+  fireflySprite = makeSprite(24, (g, s) => {
+    const c = s / 2;
+    const grad = g.createRadialGradient(c, c, 0, c, c, c);
+    grad.addColorStop(0, 'rgba(255,255,180,0.95)');
+    grad.addColorStop(0.25, 'rgba(220,255,120,0.55)');
+    grad.addColorStop(1, 'rgba(190,255,90,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, s, s);
   });
   aoSprite = makeSprite(64, (g, s) => {
     const c = s / 2;
@@ -1424,10 +1441,68 @@ const starField = (function() {
   const rng = (seed) => { let s = seed; return () => { s = (s*9301+49297)%233280; return s/233280; }; };
   const r = rng(42);
   for (let i = 0; i < 130; i++) {
-    stars.push({ x: r(), y: r() * 0.92, size: 0.5 + r() * 2.0, phase: r() * Math.PI * 2 });
+    stars.push({ x: r(), y: r() * 0.92, size: 0.5 + r() * 2.0, phase: r() * Math.PI * 2, sparkle: i < 6 });
   }
   return stars;
 })();
+
+// Occasional shooting star during deep night
+let shootingStar = null, nextShootAt = 10;
+function updateAndDrawShootingStar(starFade) {
+  if (starFade < 0.9) { shootingStar = null; return; }
+  if (!shootingStar && animT >= nextShootAt) {
+    shootingStar = {
+      x0: W * (0.15 + Math.random() * 0.7),
+      y0: horizonY * (0.1 + Math.random() * 0.3),
+      dx: (Math.random() < 0.5 ? -1 : 1) * W * 0.25,
+      dy: W * 0.08,
+      start: animT,
+    };
+  }
+  if (!shootingStar) return;
+  const t = (animT - shootingStar.start) / 0.7;
+  if (t >= 1) {
+    shootingStar = null;
+    nextShootAt = animT + 15 + Math.random() * 10;
+    return;
+  }
+  const hx = shootingStar.x0 + shootingStar.dx * t;
+  const hy = shootingStar.y0 + shootingStar.dy * t;
+  const tailX = hx - shootingStar.dx * 0.25, tailY = hy - shootingStar.dy * 0.25;
+  const fade = t < 0.2 ? t / 0.2 : 1 - (t - 0.2) / 0.8;
+  ctx.save();
+  const grad = ctx.createLinearGradient(hx, hy, tailX, tailY);
+  grad.addColorStop(0, 'rgba(255,255,255,' + (0.9 * fade).toFixed(3) + ')');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.strokeStyle = grad; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tailX, tailY); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,' + (0.95 * fade).toFixed(3) + ')';
+  ctx.beginPath(); ctx.arc(hx, hy, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+// Fireflies drifting over the meadow at night (stateless sine paths)
+const fireflies = (function() {
+  const arr = [];
+  const rng = (seed) => { let s = seed; return () => { s = (s*9301+49297)%233280; return s/233280; }; };
+  const r = rng(99);
+  for (let i = 0; i < 14; i++) {
+    arr.push({ bx: r(), by: 0.12 + r() * 0.62, s1: 0.3 + r() * 0.5, s2: 0.4 + r() * 0.5, p1: r() * Math.PI * 2, p2: r() * Math.PI * 2 });
+  }
+  return arr;
+})();
+
+function drawFireflies(light) {
+  if (light.nightFactor <= 0.05) return;
+  ctx.save();
+  for (const f of fireflies) {
+    const x = f.bx * W + Math.sin(animT * f.s1 + f.p1) * 30;
+    const y = horizonY + (H - horizonY) * f.by + Math.sin(animT * f.s2 + f.p2) * 14;
+    ctx.globalAlpha = light.nightFactor * (0.25 + 0.75 * Math.abs(Math.sin(animT * 2 + f.p1)));
+    ctx.drawImage(fireflySprite, x - 7, y - 7, 14, 14);
+  }
+  ctx.restore();
+}
 
 function drawStars(a) {
   const t = a / (2 * Math.PI);
@@ -1440,12 +1515,26 @@ function drawStars(a) {
 
   ctx.save();
   for (const s of starField) {
-    const twinkle = 0.45 + 0.55 * Math.sin(animT * 1.1 + s.phase);
-    ctx.globalAlpha = starFade * Math.max(0, twinkle);
+    const speed = s.sparkle ? 0.5 : 1.1;
+    const twinkle = 0.45 + 0.55 * Math.sin(animT * speed + s.phase);
+    const alpha = starFade * Math.max(0, twinkle);
+    ctx.globalAlpha = alpha;
+    const sx = s.x * W, sy = s.y * horizonY;
     const R = s.size * 3.5;
-    ctx.drawImage(starSprite, s.x * W - R, s.y * horizonY - R, R * 2, R * 2);
+    ctx.drawImage(starSprite, sx - R, sy - R, R * 2, R * 2);
+    if (s.sparkle) {
+      // 4-point cross flare on the few "hero" stars
+      const fl = s.size * 5 * (0.7 + 0.3 * twinkle);
+      ctx.strokeStyle = 'rgba(230,240,255,0.9)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(sx - fl, sy); ctx.lineTo(sx + fl, sy);
+      ctx.moveTo(sx, sy - fl); ctx.lineTo(sx, sy + fl);
+      ctx.stroke();
+    }
   }
   ctx.restore();
+  updateAndDrawShootingStar(starFade);
 }
 
 // ============================================================
@@ -1470,14 +1559,9 @@ function drawMoon(a) {
   ctx.save();
   ctx.globalAlpha = moonFade;
 
-  // soft glow
-  const halo = ctx.createRadialGradient(mx, my, r * 0.5, mx, my, r * 3.5);
-  halo.addColorStop(0, 'rgba(200,210,255,0.18)');
-  halo.addColorStop(1, 'rgba(200,210,255,0)');
-  ctx.fillStyle = halo;
-  ctx.beginPath();
-  ctx.arc(mx, my, r * 3.5, 0, Math.PI * 2);
-  ctx.fill();
+  // soft glow (pre-rendered halo sprite)
+  const hR = r * 5;
+  ctx.drawImage(moonHaloSprite, mx - hR, my - hR, hR * 2, hR * 2);
 
   // moon body + crescent, clipped to moon circle
   ctx.beginPath();
@@ -1492,6 +1576,12 @@ function drawMoon(a) {
   ctx.beginPath();
   ctx.arc(mx, my, r, 0, Math.PI * 2);
   ctx.fill();
+
+  // craters (inside the clip)
+  ctx.fillStyle = 'rgba(160,175,205,0.5)';
+  ctx.beginPath(); ctx.arc(mx - r * 0.35, my - r * 0.15, r * 0.16, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx - r * 0.05, my + r * 0.35, r * 0.11, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx + r * 0.1, my - r * 0.45, r * 0.09, 0, Math.PI * 2); ctx.fill();
 
   // crescent shadow overlay — offset circle, clipped to moon
   const shadowX = mx + r * 0.45;
@@ -1907,20 +1997,31 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
       const wy = topY + 10 * scale + gapY + r * (winH + gapY);
 
       if (light.nightFactor > 0) {
-        // Night: windows glow warm yellow/amber
-        ctx.save();
-        ctx.fillStyle = `rgb(255,220,100)`;
-        ctx.globalAlpha = light.nightFactor * 0.92;
-        ctx.fillRect(wx, wy, winW, winH);
-        ctx.restore();
-        // Bloom — soft warm halo spilling from each window
-        ctx.save();
-        const bloom = ctx.createRadialGradient(wx + winW/2, wy + winH/2, 0, wx + winW/2, wy + winH/2, winW * 2.2);
-        bloom.addColorStop(0, `rgba(255,200,60,${light.nightFactor * 0.18})`);
-        bloom.addColorStop(1, 'rgba(255,180,40,0)');
-        ctx.fillStyle = bloom;
-        ctx.fillRect(wx - winW * 1.2, wy - winH * 1.2, winW * 3.4, winH * 3.4);
-        ctx.restore();
+        // ~80% of windows are lit at night so buildings look inhabited
+        const isLit = ((r * 7 + c * 13 + (cx | 0)) % 5) !== 0;
+        if (isLit) {
+          // Night: windows glow warm yellow/amber
+          ctx.save();
+          ctx.fillStyle = `rgb(255,220,100)`;
+          ctx.globalAlpha = light.nightFactor * 0.92;
+          ctx.fillRect(wx, wy, winW, winH);
+          ctx.restore();
+          // Bloom — soft warm halo spilling from each window
+          ctx.save();
+          const bloom = ctx.createRadialGradient(wx + winW/2, wy + winH/2, 0, wx + winW/2, wy + winH/2, winW * 2.2);
+          bloom.addColorStop(0, `rgba(255,200,60,${light.nightFactor * 0.18})`);
+          bloom.addColorStop(1, 'rgba(255,180,40,0)');
+          ctx.fillStyle = bloom;
+          ctx.fillRect(wx - winW * 1.2, wy - winH * 1.2, winW * 3.4, winH * 3.4);
+          ctx.restore();
+        } else {
+          // Dark window — nobody home
+          ctx.save();
+          ctx.fillStyle = 'rgb(35,42,68)';
+          ctx.globalAlpha = light.nightFactor * 0.9;
+          ctx.fillRect(wx, wy, winW, winH);
+          ctx.restore();
+        }
         // Day windows still show through at partial dusk
         if (light.nightFactor < 1) {
           const winLit = litColor(winR, winG, winB, -0.2, 0, light);
@@ -2856,6 +2957,7 @@ function draw() {
     drawStars(sunAngle);
     drawMoon(sunAngle);
     drawMoonRays(light);
+    drawFireflies(light);
     // Lamppost light cones and ground pools above overlay
     for (const obj of sceneObjects) {
       if (obj.type === 'lamppost' && (!obj.toggleKey || objVisible[obj.toggleKey])) {
