@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Sun Movement & Shadow Formation — 3D Shapes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
   /* ── Design Tokens ── */
   :root {
@@ -27,7 +30,7 @@
   /* ── Reset & Base ── */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-display);
     overflow: hidden; touch-action: none;
     user-select: none; -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
@@ -44,9 +47,11 @@
   #timeLabel {
     position: fixed; top: 14px; left: 14px;
     background: var(--hud-bg); color: #fff; padding: 10px 28px;
-    border-radius: var(--r-pill); font-size: clamp(16px, 3.5vw, 26px); font-weight: 600;
+    border-radius: var(--r-pill); font-size: clamp(16px, 3.5vw, 26px); font-weight: 700;
+    border: 2px solid rgba(255,255,255,0.22);
+    box-shadow: var(--shadow-pop);
     z-index: 10; pointer-events: none;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); white-space: nowrap;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); white-space: nowrap;
   }
   #shapeLabel {
     position: fixed; top: 62px; left: 14px;
@@ -57,10 +62,17 @@
   }
   #observationBox {
     position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-    background: rgba(255,255,255,0.92); color: #333; padding: 12px 24px;
-    border-radius: 16px; font-size: clamp(14px, 3vw, 20px); font-weight: 500;
-    z-index: 10; pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    background: var(--card-bg); color: var(--ink); padding: 12px 24px;
+    border-radius: var(--r-card); font-size: clamp(14px, 3vw, 20px); font-weight: 600;
+    border-bottom: 4px solid var(--brand-a);
+    z-index: 10; pointer-events: none; box-shadow: var(--shadow-pop);
     text-align: center; max-width: 90vw; line-height: 1.4;
+  }
+  #observationBox::after {
+    content: ''; position: absolute; left: 50%; bottom: -13px;
+    transform: translateX(-50%);
+    border: 10px solid transparent; border-top-color: var(--brand-a);
+    border-bottom: none; width: 0; height: 0;
   }
   #instructions {
     position: fixed; top: 104px; left: 14px;
@@ -87,6 +99,19 @@
   #hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
   #hamburger.open span:nth-child(2) { opacity: 0; }
   #hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+  #hamburger:active { transform: scale(0.92); }
+
+  /* ── Mute button (wired to SFX module) ── */
+  #muteBtn {
+    position: fixed; top: 14px; right: 68px; z-index: 30;
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--hud-bg); border: none; cursor: pointer;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; transition: background 0.2s, transform 0.1s;
+  }
+  #muteBtn:hover { background: rgba(0,0,0,0.6); }
+  #muteBtn:active { transform: scale(0.92); }
 
   /* ── Collapsible Panel ── */
   #controlPanel {
@@ -172,6 +197,7 @@
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
   #autoPlayBtn:hover { background: rgba(255,255,255,0.18); }
+  #autoPlayBtn:active { transform: scale(0.97); }
   #autoPlayBtn.playing { background: rgba(229,115,115,0.35); }
 
   /* ── Add Object Controls ── */
@@ -234,6 +260,7 @@
     font-family: inherit;
   }
   #assessmentBtn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(90,60,200,0.65); }
+  #assessmentBtn:active { transform: scale(0.95); }
   #assessmentBtn svg { flex-shrink: 0; }
 
   /* Left-side panel — canvas stays visible & interactive on the right */
@@ -250,7 +277,7 @@
     overflow-y: auto;
     transform: translateX(-110%);
     transition: transform 0.38s cubic-bezier(.4,0,.2,1);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-display);
     pointer-events: none;
   }
   #assessmentOverlay.visible {
@@ -371,6 +398,8 @@
     font-family: inherit;
   }
   .assess-nav-btn:hover { transform: translateY(-1px); }
+  .assess-nav-btn:active { transform: scale(0.96); }
+  .part-choice-card:active { transform: scale(0.98); }
   #checkAnswerBtn {
     background: var(--brand-grad); color: #fff;
     box-shadow: 0 4px 16px rgba(90,60,200,0.35);
@@ -547,7 +576,7 @@
       top: 10px; left: 10px;
       padding: 7px 16px;
       font-size: clamp(13px, 4.5vw, 18px);
-      max-width: calc(100vw - 72px); /* don't reach hamburger */
+      max-width: calc(100vw - 126px); /* don't reach mute + hamburger */
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
@@ -576,6 +605,10 @@
     /* Hamburger: slightly larger tap target */
     #hamburger {
       top: 10px; right: 10px;
+      width: 48px; height: 48px;
+    }
+    #muteBtn {
+      top: 10px; right: 64px;
       width: 48px; height: 48px;
     }
 
@@ -703,6 +736,12 @@
 <div id="instructions">Drag the sun across the sky to see how light and shadows change!</div>
 <div id="observationBox"></div>
 
+<!-- Mute Button -->
+<button id="muteBtn" aria-label="Toggle sound">
+  <svg id="muteIconOn" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z"/><path d="M14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
+  <svg id="muteIconOff" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+</button>
+
 <!-- Hamburger Button -->
 <button id="hamburger" aria-label="Open controls">
   <span></span><span></span><span></span>
@@ -710,16 +749,16 @@
 
 <!-- Collapsible Control Panel -->
 <div id="controlPanel">
-  <div class="panel-header">Controls</div>
+  <div class="panel-header">🎮 Controls</div>
 
   <div class="panel-section">
-    <label>Time of Day</label>
+    <label>🕐 Time of Day</label>
     <input type="range" id="timeSlider" min="0" max="1000" value="500">
     <div id="sliderTimeDisplay">12:00 PM</div>
   </div>
 
   <div class="panel-section">
-    <label>Scene Objects</label>
+    <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
       <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
@@ -739,7 +778,7 @@
   </div>
 
   <div class="panel-section">
-    <label>Add 3D Figure</label>
+    <label>✨ Add 3D Figure</label>
     <div class="add-obj-row">
       <select id="shapeSelect">
         <option value="cone">Cone (Pine Tree)</option>
@@ -757,7 +796,7 @@
   </div>
 
   <div class="panel-section">
-    <label>Playback</label>
+    <label>▶️ Playback</label>
     <button id="autoPlayBtn">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg>
       Auto-Play Full Day &amp; Night
@@ -885,6 +924,7 @@ const PALETTE = {
 
 // --- Global animation clock (seconds), advanced by the master loop ---
 let animT = 0, lastTS = 0;
+let lastTimeLabelStr = '', lastObsStr = '';
 
 // --- Sprite helper: pre-rendered offscreen canvas (glows are expensive
 //     to build per frame; build once, drawImage every frame) ---
@@ -2065,7 +2105,7 @@ function draw3DBuilding(cx, baseDepth, bw, bh, baseR, baseG, baseB, winR, winG, 
 
   // Shape label
   ctx.save();
-  ctx.font = 'bold ' + Math.max(9, 11*scale) + 'px Segoe UI, sans-serif';
+  ctx.font = 'bold ' + Math.max(9, 11*scale) + 'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 2.5;
@@ -2291,7 +2331,7 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
     const canopyCY = trunkTopY - canopyR * 0.55;
     draw3DSphere(cx + sway, canopyCY, canopyR, 56, 142, 60, light);
     ctx.save();
-    ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
+    ctx.font = 'bold '+Math.max(8,10*scale)+'px "Baloo 2", "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
@@ -2306,7 +2346,7 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
     const c2TipY = coneTipY - canopyR*0.5;
     draw3DCone(cx + sway, c2TipY, c2BaseY, canopyR*0.65, 56, 142, 60, light);
     ctx.save();
-    ctx.font = 'bold '+Math.max(8,10*scale)+'px Segoe UI, sans-serif';
+    ctx.font = 'bold '+Math.max(8,10*scale)+'px "Baloo 2", "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
@@ -2316,7 +2356,7 @@ function draw3DTree(cx, baseDepth, type, shadowDir, shadowLen, light) {
   }
 
   ctx.save();
-  ctx.font = Math.max(7,8*scale)+'px Segoe UI, sans-serif';
+  ctx.font = Math.max(7,8*scale)+'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.5;
@@ -2390,7 +2430,7 @@ function drawPerson(cx, baseDepth, shadowDir, shadowLen, light) {
 
   // Label
   ctx.save();
-  ctx.font = 'bold ' + Math.max(8, 10 * scale) + 'px Segoe UI, sans-serif';
+  ctx.font = 'bold ' + Math.max(8, 10 * scale) + 'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
@@ -2479,7 +2519,7 @@ function drawLamppost(cx, baseDepth, shadowDir, shadowLen, light) {
 
   // Label: "Cylinder" on pole
   ctx.save();
-  ctx.font = Math.max(7, 8 * scale) + 'px Segoe UI, sans-serif';
+  ctx.font = Math.max(7, 8 * scale) + 'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.5;
@@ -2490,7 +2530,7 @@ function drawLamppost(cx, baseDepth, shadowDir, shadowLen, light) {
 
   // Label: "Sphere" on lamp
   ctx.save();
-  ctx.font = 'bold ' + Math.max(7, 9 * scale) + 'px Segoe UI, sans-serif';
+  ctx.font = 'bold ' + Math.max(7, 9 * scale) + 'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
@@ -2677,7 +2717,7 @@ function drawPyramid(cx, baseDepth, size, r, g, b, shadowDir, shadowLen, light) 
 
   // Label
   ctx.save();
-  ctx.font = 'bold ' + Math.max(9, 11 * scale) + 'px Segoe UI, sans-serif';
+  ctx.font = 'bold ' + Math.max(9, 11 * scale) + 'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 2.5;
@@ -2749,7 +2789,7 @@ function drawBench(cx, baseDepth, shadowDir, shadowLen, light) {
 
   // Label
   ctx.save();
-  ctx.font = 'bold ' + Math.max(8, 9 * scale) + 'px Segoe UI, sans-serif';
+  ctx.font = 'bold ' + Math.max(8, 9 * scale) + 'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
@@ -2813,18 +2853,18 @@ function drawSun(sx, sy, light) {
 // LABELS & ARC GUIDE
 // ============================================================
 function drawLabels() {
-  ctx.font='bold '+Math.max(14,W*0.022)+'px Segoe UI, sans-serif';
+  ctx.font='bold '+Math.max(14,W*0.022)+'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.textAlign='center';
   ctx.fillStyle='rgba(255,255,255,0.85)';
   ctx.fillText('East',W*0.06,horizonY-10);
-  ctx.font=Math.max(10,W*0.014)+'px Segoe UI, sans-serif';
+  ctx.font=Math.max(10,W*0.014)+'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.fillStyle='rgba(255,255,255,0.6)';
   ctx.fillText('(Sunrise)',W*0.06,horizonY+8);
 
-  ctx.font='bold '+Math.max(14,W*0.022)+'px Segoe UI, sans-serif';
+  ctx.font='bold '+Math.max(14,W*0.022)+'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.fillStyle='rgba(255,255,255,0.85)';
   ctx.fillText('West',W*0.94,horizonY-10);
-  ctx.font=Math.max(10,W*0.014)+'px Segoe UI, sans-serif';
+  ctx.font=Math.max(10,W*0.014)+'px "Baloo 2", "Segoe UI", sans-serif';
   ctx.fillStyle='rgba(255,255,255,0.6)';
   ctx.fillText('(Sunset)',W*0.94,horizonY+8);
 }
@@ -2966,9 +3006,17 @@ function draw() {
     }
   }
 
-  // UI
-  timeLabel.textContent = timeStr + ' \u2014 ' + period;
-  observationBox.innerHTML = getObservation(sunAngle, hours);
+  // UI \u2014 update DOM only when the text actually changes
+  const uiStr = (isNight ? '\ud83c\udf19 ' : '\u2600\ufe0f ') + timeStr + ' \u2014 ' + period;
+  if (uiStr !== lastTimeLabelStr) {
+    lastTimeLabelStr = uiStr;
+    timeLabel.textContent = uiStr;
+  }
+  const obsStr = getObservation(sunAngle, hours);
+  if (obsStr !== lastObsStr) {
+    lastObsStr = obsStr;
+    observationBox.innerHTML = obsStr;
+  }
 }
 
 // ============================================================
