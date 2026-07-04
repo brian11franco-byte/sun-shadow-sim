@@ -5,6 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Sun Movement & Shadow Formation — 3D Shapes</title>
 <style>
+  /* ── Design Tokens ── */
+  :root {
+    --font-display: 'Baloo 2', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --brand-a: #6a3de8;
+    --brand-b: #3d8ef0;
+    --brand-grad: linear-gradient(135deg, var(--brand-a), var(--brand-b));
+    --sun: #FFD54F;
+    --good: #66bb6a;
+    --bad: #ef5350;
+    --hud-bg: rgba(0,0,0,0.45);
+    --card-bg: rgba(255,255,255,0.94);
+    --panel-bg: rgba(15,15,30,0.88);
+    --ink: #333;
+    --r-pill: 30px;
+    --r-card: 20px;
+    --r-btn: 14px;
+    --shadow-pop: 0 6px 24px rgba(0,0,0,0.22);
+  }
+
   /* ── Reset & Base ── */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -24,8 +43,8 @@
 
   #timeLabel {
     position: fixed; top: 14px; left: 14px;
-    background: rgba(0,0,0,0.45); color: #fff; padding: 10px 28px;
-    border-radius: 30px; font-size: clamp(16px, 3.5vw, 26px); font-weight: 600;
+    background: var(--hud-bg); color: #fff; padding: 10px 28px;
+    border-radius: var(--r-pill); font-size: clamp(16px, 3.5vw, 26px); font-weight: 600;
     z-index: 10; pointer-events: none;
     backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); white-space: nowrap;
   }
@@ -55,7 +74,7 @@
   #hamburger {
     position: fixed; top: 14px; right: 14px; z-index: 30;
     width: 44px; height: 44px; border-radius: 12px;
-    background: rgba(0,0,0,0.45); border: none; cursor: pointer;
+    background: var(--hud-bg); border: none; cursor: pointer;
     backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 5px; padding: 0; transition: background 0.2s;
@@ -73,7 +92,7 @@
   #controlPanel {
     position: fixed; top: 68px; right: 14px; z-index: 25;
     width: 280px; max-width: calc(100vw - 28px);
-    background: rgba(15,15,30,0.88); color: #fff;
+    background: var(--panel-bg); color: #fff;
     border-radius: 16px; padding: 0; overflow: hidden;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 8px 32px rgba(0,0,0,0.35);
@@ -110,19 +129,19 @@
   #timeSlider::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
     width: 22px; height: 22px; border-radius: 50%;
-    background: #FFD54F; border: 2px solid rgba(255,255,255,0.8);
+    background: var(--sun); border: 2px solid rgba(255,255,255,0.8);
     box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer;
     transition: transform 0.15s;
   }
   #timeSlider::-webkit-slider-thumb:hover { transform: scale(1.15); }
   #timeSlider::-moz-range-thumb {
     width: 22px; height: 22px; border-radius: 50%;
-    background: #FFD54F; border: 2px solid rgba(255,255,255,0.8);
+    background: var(--sun); border: 2px solid rgba(255,255,255,0.8);
     box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer;
   }
   #sliderTimeDisplay {
     text-align: center; font-size: 18px; font-weight: 700;
-    margin-top: 6px; color: #FFD54F;
+    margin-top: 6px; color: var(--sun);
   }
 
   /* ── Object Toggle ── */
@@ -207,7 +226,7 @@
   #assessmentBtn {
     position: fixed; bottom: 20px; right: 20px; z-index: 30;
     padding: 13px 22px; border: none; border-radius: 50px;
-    background: linear-gradient(135deg, #6a3de8, #3d8ef0);
+    background: var(--brand-grad);
     color: #fff; font-size: clamp(13px, 2.5vw, 16px); font-weight: 700;
     cursor: pointer; box-shadow: 0 4px 20px rgba(90,60,200,0.5);
     display: flex; align-items: center; gap: 8px;
@@ -274,7 +293,7 @@
   }
   .assess-progress-fill {
     height: 100%; border-radius: 4px; width: 0%;
-    background: linear-gradient(90deg, #6a3de8, #3d8ef0);
+    background: linear-gradient(90deg, var(--brand-a), var(--brand-b));
     transition: width 0.4s cubic-bezier(.4,0,.2,1);
   }
   .assess-progress-text {
@@ -353,7 +372,7 @@
   }
   .assess-nav-btn:hover { transform: translateY(-1px); }
   #checkAnswerBtn {
-    background: linear-gradient(135deg, #6a3de8, #3d8ef0); color: #fff;
+    background: var(--brand-grad); color: #fff;
     box-shadow: 0 4px 16px rgba(90,60,200,0.35);
   }
   #nextQuestionBtn {
@@ -381,7 +400,7 @@
   }
   .results-score {
     font-size: clamp(42px, 10vw, 72px); font-weight: 900;
-    background: linear-gradient(135deg, #6a3de8, #3d8ef0);
+    background: var(--brand-grad);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text; margin-bottom: 4px;
   }
@@ -493,7 +512,7 @@
   /* Restart button */
   #restartAssessBtn {
     padding: 14px 40px; border: none; border-radius: 50px;
-    background: linear-gradient(135deg, #6a3de8, #3d8ef0);
+    background: var(--brand-grad);
     color: #fff; font-size: clamp(15px, 3vw, 18px); font-weight: 700;
     cursor: pointer; box-shadow: 0 4px 20px rgba(90,60,200,0.4);
     transition: transform 0.18s, box-shadow 0.18s; font-family: inherit;
@@ -854,6 +873,19 @@ const autoPlayBtn = document.getElementById('autoPlayBtn');
 let W, H, horizonY, arcCX, arcCY, arcRX, arcRY;
 let dpr = window.devicePixelRatio || 1;
 
+// --- Shared art palette (canvas-side design tokens) ---
+const PALETTE = {
+  grass:    { light: [110, 190, 90], dark: [56, 140, 62] },
+  hillFar:  [140, 190, 150],
+  hillMid:  [105, 170, 100],
+  hillNear: [88, 156, 74],
+  shadow:   [28, 45, 75],   // cool blue cartoon shadow
+  sunCore:  '#FFF9C4', sunMid: '#FFE082', sunEdge: '#FFA726',
+};
+
+// --- Global animation clock (seconds), advanced by the master loop ---
+let animT = 0, lastTS = 0;
+
 function resize() {
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -864,7 +896,7 @@ function resize() {
   arcRX = W * 0.44; arcRY = H * 0.40;
 }
 resize();
-window.addEventListener('resize', () => { resize(); draw(); });
+window.addEventListener('resize', resize);
 
 // --- Object visibility state ---
 const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
@@ -881,7 +913,6 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
     btn.classList.toggle('on', objVisible[obj]);
-    draw();
   });
 });
 
@@ -889,23 +920,7 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
 let sunAngle = Math.PI / 2; // default noon, overridden below
 let dragging = false;
 let autoPlaying = false;
-let autoPlayRAF = null;
 let draggingWhat = null; // 'sun' | 'moon' | null
-let twinkleRAF = null;
-
-// Persistent twinkling loop — redraws only during night for star animation
-function startTwinkle() {
-  if (twinkleRAF) return;
-  function tick() {
-    const isNight = sunAngle > Math.PI && sunAngle < 2 * Math.PI;
-    if (isNight && !autoPlaying) draw();
-    twinkleRAF = isNight ? requestAnimationFrame(tick) : null;
-  }
-  twinkleRAF = requestAnimationFrame(tick);
-}
-function stopTwinkle() {
-  if (twinkleRAF) { cancelAnimationFrame(twinkleRAF); twinkleRAF = null; }
-}
 
 // --- Machine-time default ---
 function initSunFromClock() {
@@ -978,7 +993,6 @@ timeSlider.addEventListener('input', () => {
   if (sunAngle > 2 * Math.PI - 0.05) sunAngle = 2 * Math.PI - 0.05;
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
-  draw();
 });
 
 // --- Auto-play ---
@@ -995,23 +1009,13 @@ function startAutoPlay() {
   autoPlayBtn.classList.add('playing');
   autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="4" height="12"/><rect x="10" y="2" width="4" height="12"/></svg> Pause';
   if (sunAngle >= 2 * Math.PI - 0.1) sunAngle = 0.05;
-  function step() {
-    sunAngle += 0.003;
-    if (sunAngle >= 2 * Math.PI - 0.05) {
-      sunAngle = 0.05; // loop back to sunrise
-    }
-    syncSliderToAngle();
-    draw();
-    autoPlayRAF = requestAnimationFrame(step);
-  }
-  autoPlayRAF = requestAnimationFrame(step);
+  // Sun stepping happens in the master animate() loop.
 }
 
 function stopAutoPlay() {
   autoPlaying = false;
   autoPlayBtn.classList.remove('playing');
   autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg> Auto-Play Full Day &amp; Night';
-  if (autoPlayRAF) { cancelAnimationFrame(autoPlayRAF); autoPlayRAF = null; }
 }
 
 // ============================================================
@@ -1082,14 +1086,12 @@ function addUserObject() {
   });
   sceneObjects.sort((a, b) => a.depth - b.depth);
   renderUserObjList();
-  draw();
 }
 
 function removeUserObject(id) {
   const idx = sceneObjects.findIndex(o => o.id === id && o.userAdded);
   if (idx !== -1) sceneObjects.splice(idx, 1);
   renderUserObjList();
-  draw();
 }
 
 function renderUserObjList() {
@@ -1313,9 +1315,8 @@ function drawStars(a) {
   if (starFade <= 0) return;
 
   ctx.save();
-  const now = Date.now();
   for (const s of starField) {
-    const twinkle = 0.45 + 0.55 * Math.sin(now / 900 + s.phase);
+    const twinkle = 0.45 + 0.55 * Math.sin(animT * 1.1 + s.phase);
     const alpha = starFade * twinkle;
     const sx = s.x * W;
     const sy = s.y * horizonY;
@@ -1418,7 +1419,7 @@ function drawSunRays(sunPos, light) {
     grad.addColorStop(0.3, 'rgba('+warmR+','+warmG+','+warmB+','+(rayAlpha * 0.8)+')');
     grad.addColorStop(1, 'rgba('+warmR+','+warmG+','+warmB+',0)');
     ctx.strokeStyle = grad;
-    ctx.lineWidth = 6 + Math.sin(Date.now() / 2000 + i) * 2;
+    ctx.lineWidth = 6 + Math.sin(animT * 0.5 + i) * 2;
     ctx.beginPath();
     ctx.moveTo(sunPos.x, sunPos.y);
     ctx.lineTo(sunPos.x + dx * rayLen, sunPos.y + dy * rayLen);
@@ -1452,13 +1453,13 @@ function drawMoonRays(light) {
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
     const rayLen = H * 0.92;
-    const sway = Math.sin(Date.now() / 3500 + i * 1.3) * 0.004;
+    const sway = Math.sin(animT / 3.5 + i * 1.3) * 0.004;
     const grad = ctx.createLinearGradient(mx, my, mx + dx * rayLen, my + dy * rayLen);
     grad.addColorStop(0,   `rgba(200,215,255,${(baseAlpha * 1.4 + sway).toFixed(4)})`);
     grad.addColorStop(0.25, `rgba(200,215,255,${(baseAlpha * 0.7).toFixed(4)})`);
     grad.addColorStop(1,   'rgba(200,215,255,0)');
     ctx.strokeStyle = grad;
-    ctx.lineWidth = 4 + Math.sin(Date.now() / 2500 + i) * 1.2;
+    ctx.lineWidth = 4 + Math.sin(animT / 2.5 + i) * 1.2;
     ctx.beginPath();
     ctx.moveTo(mx, my);
     ctx.lineTo(mx + dx * rayLen, my + dy * rayLen);
@@ -2444,7 +2445,7 @@ function drawSun(sx, sy) {
 
   ctx.save(); ctx.translate(sx,sy);
   ctx.strokeStyle='rgba(255,230,80,0.5)'; ctx.lineWidth=2.5;
-  const t=Date.now()/3000;
+  const t=animT/3;
   for(let i=0;i<12;i++){
     const a=(i/12)*Math.PI*2+t;
     ctx.beginPath();
@@ -2596,10 +2597,6 @@ function draw() {
   // UI
   timeLabel.textContent = timeStr + ' \u2014 ' + period;
   observationBox.innerHTML = getObservation(sunAngle, hours);
-
-  // Keep stars twinkling during night when not auto-playing
-  if (isNight && !autoPlaying) startTwinkle();
-  else if (!isNight) stopTwinkle();
 }
 
 // ============================================================
@@ -2655,7 +2652,6 @@ function applyDrag(px, py) {
     draggingSceneObj.depth = Math.max(0.05, Math.min(0.92, rawDepth));
     sceneObjects.sort((a, b) => a.depth - b.depth);
   }
-  draw();
 }
 
 canvas.addEventListener('mousedown', e => {
@@ -2664,7 +2660,7 @@ canvas.addEventListener('mousedown', e => {
     draggingWhat = hit.what; draggingSceneObj = hit.obj || null; dragging = true;
     if (hit.what === 'sun' || hit.what === 'moon') stopAutoPlay();
     instructionsEl.style.opacity = '0';
-    canvas.style.cursor = 'grabbing'; draw();
+    canvas.style.cursor = 'grabbing';
   }
 });
 window.addEventListener('mousemove', e => {
@@ -2687,7 +2683,7 @@ canvas.addEventListener('touchstart', e => {
   if (hit) {
     draggingWhat = hit.what; draggingSceneObj = hit.obj || null; dragging = true;
     if (hit.what === 'sun' || hit.what === 'moon') stopAutoPlay();
-    instructionsEl.style.opacity = '0'; e.preventDefault(); draw();
+    instructionsEl.style.opacity = '0'; e.preventDefault();
   }
 }, {passive: false});
 window.addEventListener('touchmove', e => {
@@ -3089,11 +3085,23 @@ window.addEventListener('touchend', () => { dragging = false; draggingWhat = nul
 // INITIALIZE
 // ============================================================
 initSunFromClock();     // Set sun position from device clock
-draw();                 // Initial render
 
-function animate(){ draw(); requestAnimationFrame(animate); }
+// Master loop: owns the animation clock, auto-play stepping, and rendering.
+function animate(ts) {
+  const dt = Math.min(50, lastTS ? ts - lastTS : 16.7);
+  lastTS = ts;
+  animT += dt / 1000;
+  if (autoPlaying) {
+    sunAngle += 0.18 * (dt / 1000); // 0.003/frame @ 60fps
+    if (sunAngle >= 2 * Math.PI - 0.05) sunAngle = 0.05; // loop back to sunrise
+    syncSliderToAngle();
+  }
+  if (typeof SFX !== 'undefined') SFX.ambientTick(animT);
+  draw();
+  requestAnimationFrame(animate);
+}
 setTimeout(()=>{ instructionsEl.style.opacity='0'; }, 5000);
-animate();
+requestAnimationFrame(animate);
 </script>
 </body>
 </html>
