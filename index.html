@@ -336,6 +336,45 @@
     border-bottom: 1px solid rgba(255,255,255,0.07);
   }
 
+  /* Per-part progress stars */
+  #starRow {
+    display: flex; gap: 5px; margin-bottom: 12px; min-height: 22px;
+  }
+  #starRow .q-star {
+    font-size: 18px; line-height: 1; color: rgba(255,255,255,0.22);
+    transition: color 0.2s;
+  }
+  #starRow .q-star.earned {
+    color: var(--sun); text-shadow: 0 0 8px rgba(255,213,79,0.6);
+  }
+  #starRow .q-star.missed { color: rgba(255,213,79,0.35); }
+  #starRow .q-star.pop {
+    animation: starPop 0.45s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes starPop {
+    from { transform: scale(0.2); }
+    60%  { transform: scale(1.5); }
+    to   { transform: scale(1); }
+  }
+
+  /* Results medal stars */
+  #medalRow {
+    display: flex; justify-content: center; gap: 10px; margin-bottom: 6px;
+    min-height: 40px;
+  }
+  #medalRow .medal-star {
+    font-size: 34px; line-height: 1; color: rgba(255,255,255,0.15);
+  }
+  #medalRow .medal-star.lit {
+    color: var(--sun); text-shadow: 0 0 14px rgba(255,213,79,0.7);
+    animation: starPop 0.5s cubic-bezier(.34,1.56,.64,1) backwards;
+  }
+
+  /* Confetti overlay — never intercepts input */
+  #fxCanvas {
+    position: fixed; inset: 0; z-index: 300; pointer-events: none;
+  }
+
   /* Individual question */
   .assess-question {
     display: none;
@@ -861,6 +900,7 @@
       <div class="assess-part-label" id="partLabel">Part 1 — Science: Sun Movement &amp; Shadows</div>
       <div id="resumeBanner">Resuming where you left off…</div>
       <div class="q-number" id="qNumber">Question 1</div>
+      <div id="starRow"></div>
       <div class="q-text" id="qText"></div>
       <div class="assess-input-wrap">
         <input class="assess-input" id="assessInput" type="text" autocomplete="off"
@@ -877,6 +917,7 @@
 
     <!-- ③ Results screen -->
     <div id="assessResults">
+      <div id="medalRow"></div>
       <span class="results-emoji" id="resultsEmoji">🌟</span>
       <div class="results-score" id="resultsScore">20/20</div>
       <div class="results-label">correct answers</div>
@@ -890,6 +931,7 @@
 </div>
 
 <canvas id="scene"></canvas>
+<canvas id="fxCanvas"></canvas>
 
 <script>
 // ============================================================
@@ -3112,6 +3154,74 @@ window.addEventListener('touchmove', e => {
 window.addEventListener('touchend', () => { dragging = false; draggingWhat = null; draggingSceneObj = null; });
 
 // ============================================================
+// FX — confetti bursts on a dedicated overlay canvas.
+// Runs its own rAF that self-stops when every particle is dead, so the
+// main render loop never pays for idle confetti.
+// ============================================================
+const FX = (function () {
+  const cv = document.getElementById('fxCanvas');
+  const g = cv.getContext('2d');
+  const COLORS = ['#FFD54F', '#6a3de8', '#3d8ef0', '#66bb6a', '#ef5350', '#ff8a65'];
+  const pool = [];
+  for (let i = 0; i < 90; i++) pool.push({ life: 0 });
+  let running = false, lastT = 0;
+
+  function fit() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+  window.addEventListener('resize', fit);
+  fit();
+
+  function tick(ts) {
+    const dt = Math.min(0.05, (ts - lastT) / 1000); lastT = ts;
+    g.clearRect(0, 0, cv.width, cv.height);
+    let alive = 0;
+    for (const p of pool) {
+      if (p.life <= 0) continue;
+      p.life -= dt * 0.55;
+      if (p.life <= 0) continue;
+      alive++;
+      p.vy += 700 * dt;
+      p.vx *= (1 - dt * 1.2);
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      g.save();
+      g.globalAlpha = Math.min(1, p.life * 2);
+      g.translate(p.x, p.y); g.rotate(p.rot);
+      g.fillStyle = p.color;
+      if (p.shape === 'circle') {
+        g.beginPath(); g.arc(0, 0, p.size / 2, 0, Math.PI * 2); g.fill();
+      } else {
+        g.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66);
+      }
+      g.restore();
+    }
+    if (alive > 0) requestAnimationFrame(tick);
+    else { running = false; g.clearRect(0, 0, cv.width, cv.height); }
+  }
+
+  function burst(x, y, n) {
+    let launched = 0;
+    for (const p of pool) {
+      if (launched >= n) break;
+      if (p.life > 0) continue;
+      launched++;
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+      const v = 220 + Math.random() * 260;
+      p.x = x; p.y = y;
+      p.vx = Math.cos(a) * v; p.vy = Math.sin(a) * v;
+      p.rot = Math.random() * Math.PI * 2;
+      p.vr = (Math.random() - 0.5) * 12;
+      p.color = COLORS[(Math.random() * COLORS.length) | 0];
+      p.shape = Math.random() < 0.4 ? 'circle' : 'rect';
+      p.size = 5 + Math.random() * 5;
+      p.life = 1;
+    }
+    if (!running) { running = true; lastT = performance.now(); requestAnimationFrame(tick); }
+  }
+
+  return { burst };
+})();
+
+// ============================================================
 // FORMATIVE ASSESSMENT MODULE
 // ============================================================
 (function () {
@@ -3192,6 +3302,8 @@ window.addEventListener('touchend', () => { dragging = false; draggingWhat = nul
   const resultsSub     = document.getElementById('resultsSub');
   const reviewList     = document.getElementById('reviewList');
   const restartBtn     = document.getElementById('restartAssessBtn');
+  const starRow        = document.getElementById('starRow');
+  const medalRow       = document.getElementById('medalRow');
 
   // ── Helpers ────────────────────────────────────────────────
   function escapeHtml(s) {
@@ -3300,6 +3412,7 @@ window.addEventListener('touchend', () => { dragging = false; draggingWhat = nul
     const partQs   = orderedQuestions.filter(x => x.part === q.part);
     const posInPart = partQs.indexOf(q) + 1;
     qNumber.textContent = `Question ${posInPart} of ${partQs.length}`;
+    renderStars(q.part);
 
     qText.innerHTML =
       escapeHtml(q.before) +
@@ -3334,6 +3447,19 @@ window.addEventListener('touchend', () => { dragging = false; draggingWhat = nul
     progressText.textContent = `${answered} / ${orderedQuestions.length}`;
   }
 
+  // ── Per-part star row: ★ gold = correct, ★ dim = wrong, ☆ = pending ──
+  function renderStars(part) {
+    starRow.innerHTML = '';
+    orderedQuestions.forEach((q, i) => {
+      if (q.part !== part) return;
+      const ua = userAnswers[i];
+      const span = document.createElement('span');
+      span.className = 'q-star ' + (ua ? (ua.correct ? 'earned' : 'missed') : 'pending');
+      span.textContent = ua ? '★' : '☆';
+      starRow.appendChild(span);
+    });
+  }
+
   // ── Check answer ───────────────────────────────────────────
   function checkAnswer() {
     if (answered) return;
@@ -3358,6 +3484,19 @@ window.addEventListener('touchend', () => { dragging = false; draggingWhat = nul
       ? ['Great job! ✓','Correct! ✓','Well done! ✓','Spot on! ✓'][Math.floor(Math.random()*4)]
       : `Not quite. The answer is: ${q.answer}`;
     if (!correct) hintEl.textContent = '💡 ' + q.hint;
+
+    // Star pop + celebration
+    renderStars(q.part);
+    const partQs = orderedQuestions.filter(x => x.part === q.part);
+    const starEl = starRow.children[partQs.indexOf(q)];
+    if (starEl) starEl.classList.add('pop');
+    if (correct) {
+      const r = assessInput.getBoundingClientRect();
+      FX.burst(r.left + r.width / 2, r.top, 26);
+      if (typeof SFX !== 'undefined') SFX.chime();
+    } else {
+      if (typeof SFX !== 'undefined') SFX.buzz();
+    }
 
     checkBtn.style.display = 'none';
     nextBtn.classList.add('visible');
@@ -3406,8 +3545,38 @@ window.addEventListener('touchend', () => { dragging = false; draggingWhat = nul
     progressFill.style.width = '100%';
     progressText.textContent = `${orderedQuestions.length} / ${orderedQuestions.length}`;
 
-    resultsScore.textContent = `${score} / ${orderedQuestions.length}`;
+    // Score counts up from 0
+    const total = orderedQuestions.length;
+    const countStart = performance.now();
+    (function countUp(ts) {
+      const f = Math.min(1, ((ts || performance.now()) - countStart) / 800);
+      resultsScore.textContent = `${Math.round(score * f)} / ${total}`;
+      if (f < 1) requestAnimationFrame(countUp);
+    })();
+
     const pct = score / orderedQuestions.length;
+
+    // Medal stars: 3 for ≥90%, 2 for ≥60%, 1 otherwise
+    const medals = pct >= 0.9 ? 3 : pct >= 0.6 ? 2 : 1;
+    medalRow.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const s = document.createElement('span');
+      s.textContent = '★';
+      s.className = 'medal-star' + (i < medals ? ' lit' : '');
+      if (i < medals) s.style.animationDelay = (0.2 + i * 0.18) + 's';
+      medalRow.appendChild(s);
+    }
+
+    // Confetti celebration for great scores
+    if (pct >= 0.8) {
+      const rect = overlay.getBoundingClientRect();
+      [0.25, 0.5, 0.75].forEach((fx, i) => {
+        setTimeout(() => {
+          FX.burst(rect.left + rect.width * fx, rect.top + 130, 26);
+          if (typeof SFX !== 'undefined') SFX.pop();
+        }, 300 + i * 260);
+      });
+    }
     let emoji, msg, sub;
     if      (pct === 1)   { emoji='🌟'; msg='Perfect Score!';     sub='Amazing! You understand sun movement, shadows, and 3D shapes perfectly!'; }
     else if (pct >= 0.8)  { emoji='🎉'; msg='Outstanding!';       sub='Excellent work! Just a few things to review below.'; }
@@ -3444,6 +3613,8 @@ window.addEventListener('touchend', () => { dragging = false; draggingWhat = nul
     nextBtn.textContent = 'Next →';
     progressFill.style.width = '0%';
     progressWrap.style.display = 'none';
+    starRow.innerHTML = '';
+    medalRow.innerHTML = '';
     updatePartCards();
     showScreen('select');
   }
