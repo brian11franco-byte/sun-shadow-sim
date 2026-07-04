@@ -897,8 +897,17 @@ function makeSprite(size, painter) {
   return c;
 }
 
-let starSprite = null;
+let starSprite = null, sunHaloSprite = null;
 function buildSprites() {
+  sunHaloSprite = makeSprite(160, (g, s) => {
+    const c = s / 2;
+    const grad = g.createRadialGradient(c, c, s * 0.06, c, c, c);
+    grad.addColorStop(0, 'rgba(255,244,150,0.55)');
+    grad.addColorStop(0.35, 'rgba(255,205,80,0.22)');
+    grad.addColorStop(0.7, 'rgba(255,170,60,0.08)');
+    grad.addColorStop(1, 'rgba(255,170,60,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, s, s);
+  });
   starSprite = makeSprite(32, (g, s) => {
     const c = s / 2;
     const glow = g.createRadialGradient(c, c, 0, c, c, c);
@@ -1266,55 +1275,52 @@ function perspScale(depth) { return 0.30 + depth * 0.85; }
 // ============================================================
 // SKY
 // ============================================================
+// Sky keyframes: each entry is {t, s:[top, upper, mid, low, horizon]}.
+// The t=1.0 entry MUST equal t=0 exactly (slider wraps at 2π−0.05).
+const SKY_DAWN     = [[40,35,95],  [110,70,130], [225,125,80], [250,185,110], [255,215,140]];
+const SKY_MORN     = [[70,140,225],[110,175,240],[150,205,250],[195,228,255], [225,242,255]];
+const SKY_NOON     = [[45,125,228],[90,165,242], [130,195,250],[175,220,255], [210,238,255]];
+const SKY_EVE      = [[75,140,220],[130,175,235],[180,200,240],[225,215,220], [250,220,190]];
+const SKY_DUSK     = [[55,30,85],  [130,60,110], [215,105,75], [245,160,90],  [252,195,120]];
+const SKY_NIGHTIN  = [[10,10,38],  [14,13,48],   [18,15,55],   [26,20,62],    [38,28,72]];
+const SKY_MIDNIGHT = [[2,2,14],    [4,4,20],     [6,5,24],     [9,7,30],      [14,10,38]];
+const SKY_PREDAWN  = [[18,14,52],  [28,18,60],   [40,24,66],   [58,32,74],    [80,42,84]];
+const SKY_KEYS = [
+  { t: 0,     s: SKY_DAWN },
+  { t: 0.075, s: SKY_MORN },
+  { t: 0.25,  s: SKY_NOON },
+  { t: 0.425, s: SKY_EVE },
+  { t: 0.5,   s: SKY_DUSK },
+  { t: 0.58,  s: SKY_NIGHTIN },
+  { t: 0.75,  s: SKY_MIDNIGHT },
+  { t: 0.875, s: SKY_MIDNIGHT },   // hold deepest dark
+  { t: 0.94,  s: SKY_PREDAWN },
+  { t: 1.0,   s: SKY_DAWN },       // wrap — must match t=0
+];
+const SKY_STOP_POS = [0, 0.3, 0.55, 0.8, 1];
+
+// Set by getSkyGradient each frame; used for atmospheric haze on the hills.
+let skyHorizonRGB = SKY_NOON[4];
+
 function getSkyGradient(a) {
-  const t = a / (2 * Math.PI); // 0=6AM, 0.5=6PM, 1.0=6AM next day
-  function l3(a,b,f) { return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
-  function rgb(c) { return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')'; }
-
-  // Day palettes (t: 0 → 0.5)
-  const dawn =    { top: [45,30,80],   mid: [220,120,70],  bot: [245,180,100] };
-  const morn =    { top: [80,150,230],  mid: [140,200,250], bot: [200,230,255] };
-  const noon =    { top: [50,130,230],  mid: [120,190,250], bot: [180,220,255] };
-  const eve  =    { top: [80,150,230],  mid: [140,200,250], bot: [200,230,255] };
-  const dusk =    { top: [50,25,70],    mid: [200,100,60],  bot: [240,160,80]  };
-  // Night palettes (t: 0.5 → 1.0)
-  const nightIn = { top: [10,10,35],   mid: [15,12,45],    bot: [25,18,55]    }; // just after dusk
-  const midnight= { top: [2,2,12],     mid: [4,4,18],      bot: [8,6,25]      }; // deepest dark
-  const preDawn = { top: [20,15,50],   mid: [35,20,60],    bot: [60,30,70]    }; // pre-dawn glow
-  const dawn2   = dawn; // cycle back to dawn
-
-  let top, mid, bot;
-  if (t < 0.075) {
-    const f = t / 0.075;
-    top=l3(dawn.top,morn.top,f); mid=l3(dawn.mid,morn.mid,f); bot=l3(dawn.bot,morn.bot,f);
-  } else if (t < 0.25) {
-    const f = (t-0.075)/0.175;
-    top=l3(morn.top,noon.top,f); mid=l3(morn.mid,noon.mid,f); bot=l3(morn.bot,noon.bot,f);
-  } else if (t < 0.425) {
-    const f = (t-0.25)/0.175;
-    top=l3(noon.top,eve.top,f); mid=l3(noon.mid,eve.mid,f); bot=l3(noon.bot,eve.bot,f);
-  } else if (t < 0.5) {
-    const f = (t-0.425)/0.075;
-    top=l3(eve.top,dusk.top,f); mid=l3(eve.mid,dusk.mid,f); bot=l3(eve.bot,dusk.bot,f);
-  } else if (t < 0.58) {
-    const f = (t-0.5)/0.08;
-    top=l3(dusk.top,nightIn.top,f); mid=l3(dusk.mid,nightIn.mid,f); bot=l3(dusk.bot,nightIn.bot,f);
-  } else if (t < 0.75) {
-    const f = (t-0.58)/0.17;
-    top=l3(nightIn.top,midnight.top,f); mid=l3(nightIn.mid,midnight.mid,f); bot=l3(nightIn.bot,midnight.bot,f);
-  } else if (t < 0.875) {
-    // hold at midnight
-    top=midnight.top; mid=midnight.mid; bot=midnight.bot;
-  } else if (t < 0.94) {
-    const f = (t-0.875)/0.065;
-    top=l3(midnight.top,preDawn.top,f); mid=l3(midnight.mid,preDawn.mid,f); bot=l3(midnight.bot,preDawn.bot,f);
-  } else {
-    const f = (t-0.94)/0.06;
-    top=l3(preDawn.top,dawn2.top,f); mid=l3(preDawn.mid,dawn2.mid,f); bot=l3(preDawn.bot,dawn2.bot,f);
-  }
-
+  const t = Math.min(1, Math.max(0, a / (2 * Math.PI)));
+  let k = 0;
+  while (k < SKY_KEYS.length - 2 && t >= SKY_KEYS[k + 1].t) k++;
+  const a0 = SKY_KEYS[k], a1 = SKY_KEYS[k + 1];
+  const f = (t - a0.t) / (a1.t - a0.t);
   const g = ctx.createLinearGradient(0, 0, 0, horizonY);
-  g.addColorStop(0, rgb(top)); g.addColorStop(0.5, rgb(mid)); g.addColorStop(1, rgb(bot));
+  const stops = [];
+  for (let i = 0; i < 5; i++) {
+    const c0 = a0.s[i], c1 = a1.s[i];
+    const c = [
+      Math.round(c0[0] + (c1[0] - c0[0]) * f),
+      Math.round(c0[1] + (c1[1] - c0[1]) * f),
+      Math.round(c0[2] + (c1[2] - c0[2]) * f),
+    ];
+    stops.push(c);
+    g.addColorStop(SKY_STOP_POS[i], 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')');
+  }
+  skyHorizonRGB = stops[4];
   return g;
 }
 
@@ -2448,14 +2454,27 @@ function drawBench(cx, baseDepth, shadowDir, shadowLen, light) {
 // ============================================================
 // SUN
 // ============================================================
-function drawSun(sx, sy) {
-  const r = Math.min(W,H)*0.042;
-  const glow = ctx.createRadialGradient(sx,sy,r*0.5,sx,sy,r*3.5);
-  glow.addColorStop(0,'rgba(255,240,100,0.5)');
-  glow.addColorStop(0.5,'rgba(255,200,50,0.15)');
-  glow.addColorStop(1,'rgba(255,200,50,0)');
-  ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(sx,sy,r*3.5,0,Math.PI*2); ctx.fill();
+function drawSun(sx, sy, light) {
+  // Gentle "breathing" pulse; sun grows a touch, halo swells near the horizon
+  const r = Math.min(W,H)*0.042 * (1 + 0.015*Math.sin(animT*1.3));
+  const lowness = 1 - light.intensity;
+  const haloR = r * (3.5 + 2.5 * lowness);
+  ctx.drawImage(sunHaloSprite, sx-haloR, sy-haloR, haloR*2, haloR*2);
 
+  // Long soft triangular rays, slow counter-rotation
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(-animT*0.05);
+  ctx.fillStyle='rgba(255,215,90,0.10)';
+  for(let i=0;i<8;i++){
+    ctx.rotate(Math.PI/4);
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(-r*0.35,-r*2.9);
+    ctx.lineTo(r*0.35,-r*2.9);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // Short tick rays spinning the other way
   ctx.save(); ctx.translate(sx,sy);
   ctx.strokeStyle='rgba(255,230,80,0.5)'; ctx.lineWidth=2.5;
   const t=animT/3;
@@ -2475,9 +2494,11 @@ function drawSun(sx, sy) {
   ctx.fillStyle='rgba(255,255,255,0.3)';
   ctx.beginPath(); ctx.ellipse(sx-r*0.2,sy-r*0.25,r*0.35,r*0.2,-0.4,0,Math.PI*2); ctx.fill();
 
+  // Drag affordance: softly pulsing dashed ring
   if(!dragging){
-    ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
-    ctx.beginPath(); ctx.arc(sx,sy,r+8,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    const pr = r + 8 + Math.sin(animT*2)*2;
+    ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=2; ctx.setLineDash([6,6]);
+    ctx.beginPath(); ctx.arc(sx,sy,pr,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
   }
 }
 
@@ -2542,6 +2563,23 @@ function draw() {
   ctx.fillStyle = getSkyGradient(sunAngle);
   ctx.fillRect(0, 0, W, horizonY);
 
+  // Warm glow hugging the horizon around the low sun (dawn/dusk)
+  if (!isNight) {
+    const lowness = 1 - light.intensity;
+    if (lowness > 0.45) {
+      const glowA = (lowness - 0.45) / 0.55 * 0.5;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, W, horizonY); ctx.clip();
+      const hg = ctx.createRadialGradient(sunPos.x, sunPos.y, 0, sunPos.x, sunPos.y, W * 0.55);
+      hg.addColorStop(0, 'rgba(255,160,60,' + glowA.toFixed(3) + ')');
+      hg.addColorStop(0.5, 'rgba(255,140,70,' + (glowA * 0.4).toFixed(3) + ')');
+      hg.addColorStop(1, 'rgba(255,140,70,0)');
+      ctx.fillStyle = hg;
+      ctx.fillRect(0, 0, W, horizonY);
+      ctx.restore();
+    }
+  }
+
   // Arc guide
   drawArcGuide();
 
@@ -2565,7 +2603,7 @@ function draw() {
   }
 
   // Sun (day only — above horizon)
-  if (!isNight) drawSun(sunPos.x, sunPos.y);
+  if (!isNight) drawSun(sunPos.x, sunPos.y, light);
 
   // Hills
   drawHills(light);
@@ -2579,6 +2617,15 @@ function draw() {
   // --- Scene objects (all drawn back-to-front; array kept sorted by depth) ---
   for (const obj of sceneObjects) {
     drawSceneObject(obj, shadowDir, shadowLen, light);
+  }
+
+  // Golden-hour grading: one warm soft-light wash over the whole scene
+  if (!isNight && light.warmth > 0.25) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.fillStyle = 'rgba(255,150,60,' + ((light.warmth - 0.25) / 0.75 * 0.35).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
   }
 
   // Night darkness overlay — FULL canvas so there is no visible seam at horizon
