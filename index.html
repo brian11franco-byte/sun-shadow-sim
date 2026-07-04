@@ -886,6 +886,32 @@ const PALETTE = {
 // --- Global animation clock (seconds), advanced by the master loop ---
 let animT = 0, lastTS = 0;
 
+// --- Sprite helper: pre-rendered offscreen canvas (glows are expensive
+//     to build per frame; build once, drawImage every frame) ---
+function makeSprite(size, painter) {
+  const c = document.createElement('canvas');
+  c.width = c.height = Math.max(1, Math.round(size * dpr));
+  const g = c.getContext('2d');
+  g.scale(dpr, dpr);
+  painter(g, size);
+  return c;
+}
+
+let starSprite = null;
+function buildSprites() {
+  starSprite = makeSprite(32, (g, s) => {
+    const c = s / 2;
+    const glow = g.createRadialGradient(c, c, 0, c, c, c);
+    glow.addColorStop(0, 'rgba(220,230,255,0.5)');
+    glow.addColorStop(1, 'rgba(220,230,255,0)');
+    g.fillStyle = glow;
+    g.fillRect(0, 0, s, s);
+    g.fillStyle = 'rgb(240,245,255)';
+    g.beginPath(); g.arc(c, c, c * 0.2, 0, Math.PI * 2); g.fill();
+  });
+}
+buildSprites();
+
 function resize() {
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -1317,22 +1343,9 @@ function drawStars(a) {
   ctx.save();
   for (const s of starField) {
     const twinkle = 0.45 + 0.55 * Math.sin(animT * 1.1 + s.phase);
-    const alpha = starFade * twinkle;
-    const sx = s.x * W;
-    const sy = s.y * horizonY;
-    // glow halo
-    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.size * 3.5);
-    glow.addColorStop(0, `rgba(220,230,255,${alpha * 0.5})`);
-    glow.addColorStop(1, 'rgba(220,230,255,0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(sx, sy, s.size * 3.5, 0, Math.PI * 2);
-    ctx.fill();
-    // core dot
-    ctx.fillStyle = `rgba(240,245,255,${alpha})`;
-    ctx.beginPath();
-    ctx.arc(sx, sy, s.size * 0.7, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.globalAlpha = starFade * Math.max(0, twinkle);
+    const R = s.size * 3.5;
+    ctx.drawImage(starSprite, s.x * W - R, s.y * horizonY - R, R * 2, R * 2);
   }
   ctx.restore();
 }
