@@ -1219,6 +1219,7 @@ timeSlider.addEventListener('input', () => {
   if (sunAngle > 2 * Math.PI - 0.05) sunAngle = 2 * Math.PI - 0.05;
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
+  if (typeof SFX !== 'undefined') SFX.tick();
 });
 
 // --- Auto-play ---
@@ -3152,6 +3153,132 @@ window.addEventListener('touchmove', e => {
   if (draggingWhat) { applyDrag(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
 }, {passive: false});
 window.addEventListener('touchend', () => { dragging = false; draggingWhat = null; draggingSceneObj = null; });
+
+// ============================================================
+// SFX — lightweight synthesized sound (no audio files).
+// AudioContext is created/resumed on the first user gesture to satisfy
+// autoplay policies. Ambient sound is sparse one-shot events (bird
+// chirps by day, crickets at night), not loops.
+// ============================================================
+const SFX = (function () {
+  let actx = null, master = null;
+  let muted = false;
+  try { muted = localStorage.getItem('sunSimMuted') === '1'; } catch (e) {}
+
+  function ensure() {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      try {
+        actx = new AC();
+        master = actx.createGain();
+        master.gain.value = muted ? 0 : 1;
+        master.connect(actx.destination);
+      } catch (e) { return false; }
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return true;
+  }
+
+  // One oscillator → gain envelope → master
+  function tone(type, f0, f1, dur, peak) {
+    if (!actx || muted) return;
+    const o = actx.createOscillator();
+    const gn = actx.createGain();
+    const t = actx.currentTime;
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    gn.gain.setValueAtTime(peak, t);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(gn); gn.connect(master);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+
+  function click() { if (ensure()) tone('triangle', 880, 0, 0.035, 0.07); }
+  function chime() {
+    if (!ensure()) return;
+    [523.25, 659.25, 783.99].forEach((f, i) => {
+      setTimeout(() => tone('sine', f, 0, 0.28, 0.12), i * 90);
+    });
+  }
+  function buzz() { if (ensure()) tone('sawtooth', 150, 110, 0.22, 0.05); }
+  function pop() { if (ensure()) tone('sine', 400, 900, 0.09, 0.09); }
+
+  function chirp() {
+    const notes = 2 + (Math.random() * 2 | 0);
+    for (let i = 0; i < notes; i++) {
+      setTimeout(() => {
+        const f = 2200 + Math.random() * 1200;
+        tone('sine', f, f + 400 + Math.random() * 500, 0.06, 0.025);
+      }, i * (80 + Math.random() * 60));
+    }
+  }
+  function cricket() {
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => tone('square', 4200, 0, 0.025, 0.01), i * 60);
+    }
+  }
+
+  // Called from the master animate() loop
+  let nextAmbientAt = 3;
+  function ambientTick(t) {
+    if (!actx || muted || actx.state !== 'running') return;
+    if (t < nextAmbientAt) return;
+    const dayI = Math.max(0, Math.sin(sunAngle));
+    const tc = sunAngle / (2 * Math.PI);
+    const isNightNow = tc > 0.5 && tc < 1;
+    if (!isNightNow && dayI > 0.3) {
+      chirp();
+      nextAmbientAt = t + 4 + Math.random() * 5;
+    } else if (isNightNow && tc > 0.55 && tc < 0.95) {
+      cricket();
+      nextAmbientAt = t + 1.5 + Math.random() * 1.5;
+    } else {
+      nextAmbientAt = t + 2; // dawn/dusk hush — check again soon
+    }
+  }
+
+  // Throttled tick for slider scrubbing
+  let lastTickT = 0;
+  function tick() {
+    const now = performance.now();
+    if (now - lastTickT < 125) return;
+    lastTickT = now;
+    click();
+  }
+
+  function setMuted(m) {
+    muted = m;
+    try { localStorage.setItem('sunSimMuted', m ? '1' : '0'); } catch (e) {}
+    if (master) master.gain.value = m ? 0 : 1;
+  }
+  function isMuted() { return muted; }
+
+  document.addEventListener('pointerdown', ensure, { once: true });
+
+  return { click, chime, buzz, pop, tick, ambientTick, setMuted, isMuted };
+})();
+
+// Mute button wiring
+(function () {
+  const btn = document.getElementById('muteBtn');
+  const iconOn = document.getElementById('muteIconOn');
+  const iconOff = document.getElementById('muteIconOff');
+  function refresh() {
+    const m = SFX.isMuted();
+    iconOn.style.display = m ? 'none' : '';
+    iconOff.style.display = m ? '' : 'none';
+  }
+  btn.addEventListener('click', () => { SFX.setMuted(!SFX.isMuted()); refresh(); });
+  refresh();
+})();
+
+// Soft tick on every button press (capture phase — one listener covers
+// the hamburger, toggles, quiz nav, add/remove, everything)
+document.addEventListener('click', (e) => {
+  if (e.target.closest('button')) SFX.click();
+}, true);
 
 // ============================================================
 // FX — confetti bursts on a dedicated overlay canvas.
