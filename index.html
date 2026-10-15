@@ -38,10 +38,16 @@
   }
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* ── Global Button Touch Optimisation ── */
+  /* ── Global Button Touch Optimisation & Focus Visible Styles ── */
   button {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 3px solid var(--brand-b);
+    outline-offset: 2px;
   }
 
   #timeLabel {
@@ -776,13 +782,13 @@
 <div id="observationBox"></div>
 
 <!-- Mute Button -->
-<button id="muteBtn" aria-label="Toggle sound">
+<button id="muteBtn" aria-label="Mute sound" aria-pressed="false">
   <svg id="muteIconOn" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z"/><path d="M14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
   <svg id="muteIconOff" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false">
   <span></span><span></span><span></span>
 </button>
 
@@ -791,8 +797,8 @@
   <div class="panel-header">🎮 Controls</div>
 
   <div class="panel-section">
-    <label>🕐 Time of Day</label>
-    <input type="range" id="timeSlider" min="0" max="1000" value="500">
+    <label for="timeSlider">🕐 Time of Day</label>
+    <input type="range" id="timeSlider" min="0" max="1000" value="500" aria-label="Time of day">
     <div id="sliderTimeDisplay">12:00 PM</div>
   </div>
 
@@ -800,26 +806,26 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench" aria-pressed="true"></button>
     </div>
   </div>
 
   <div class="panel-section">
-    <label>✨ Add 3D Figure</label>
+    <label for="shapeSelect">✨ Add 3D Figure</label>
     <div class="add-obj-row">
-      <select id="shapeSelect">
+      <select id="shapeSelect" aria-label="Select 3D shape">
         <option value="cone">Cone (Pine Tree)</option>
         <option value="sphere">Sphere (Round Tree)</option>
         <option value="rectangular_prism">Rectangular Prism (Building)</option>
@@ -1129,16 +1135,21 @@ const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
+  const isOpen = hamburgerBtn.classList.toggle('open');
   controlPanel.classList.toggle('open');
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  hamburgerBtn.setAttribute('aria-label', isOpen ? 'Close controls' : 'Open controls');
 });
 
 // --- Object toggles ---
 document.querySelectorAll('.toggle-switch').forEach(btn => {
+  btn.setAttribute('aria-pressed', btn.classList.contains('on') ? 'true' : 'false');
   btn.addEventListener('click', () => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
-    btn.classList.toggle('on', objVisible[obj]);
+    const isOn = objVisible[obj];
+    btn.classList.toggle('on', isOn);
+    btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
   });
 });
 
@@ -1326,7 +1337,7 @@ function renderUserObjList() {
   userObjList.innerHTML = added.map(o =>
     '<div class="user-obj-item">' +
       '<span>' + o.label + '</span>' +
-      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove">&times;</button>' +
+      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove" aria-label="Remove ' + o.label + '">&times;</button>' +
     '</div>'
   ).join('');
   const n = added.length;
@@ -3269,6 +3280,8 @@ const SFX = (function () {
     const m = SFX.isMuted();
     iconOn.style.display = m ? 'none' : '';
     iconOff.style.display = m ? '' : 'none';
+    btn.setAttribute('aria-pressed', m ? 'true' : 'false');
+    btn.setAttribute('aria-label', m ? 'Unmute sound' : 'Mute sound');
   }
   btn.addEventListener('click', () => { SFX.setMuted(!SFX.isMuted()); refresh(); });
   refresh();
