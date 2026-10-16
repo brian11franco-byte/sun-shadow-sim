@@ -1,0 +1,3 @@
+## 2025-05-18 - Canvas Single Page App Accessibility & Keyboard Focus
+**Learning:** In standalone Canvas HTML5 applications with DOM HUD controls (like hamburger menus, object toggles, and dynamic lists), custom controls often lack native keyboard focus indicators and screen reader attributes. Adding `:focus-visible` outlines using existing theme CSS variables (`--sun`), `role="switch"` with dynamic `aria-checked` states, and descriptive dynamic `aria-label`s significantly improves accessibility without breaking UI styling.
+**Action:** Always check custom UI overlays on Canvas apps for `:focus-visible` ring visibility, switch roles, and dynamic screen reader label updates.
