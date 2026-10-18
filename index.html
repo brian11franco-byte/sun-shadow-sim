@@ -38,10 +38,14 @@
   }
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* ── Global Button Touch Optimisation ── */
+  /* ── Global Button Touch & Focus Optimisation ── */
   button {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 3px solid #3d8ef0;
+    outline-offset: 2px;
   }
 
   #timeLabel {
@@ -791,8 +795,8 @@
   <div class="panel-header">🎮 Controls</div>
 
   <div class="panel-section">
-    <label>🕐 Time of Day</label>
-    <input type="range" id="timeSlider" min="0" max="1000" value="500">
+    <label for="timeSlider">🕐 Time of Day</label>
+    <input type="range" id="timeSlider" min="0" max="1000" value="500" aria-valuetext="12:00 PM — Midday">
     <div id="sliderTimeDisplay">12:00 PM</div>
   </div>
 
@@ -800,24 +804,24 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench" aria-pressed="true"></button>
     </div>
   </div>
 
   <div class="panel-section">
-    <label>✨ Add 3D Figure</label>
+    <label for="shapeSelect">✨ Add 3D Figure</label>
     <div class="add-obj-row">
       <select id="shapeSelect">
         <option value="cone">Cone (Pine Tree)</option>
@@ -1138,7 +1142,9 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
   btn.addEventListener('click', () => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
-    btn.classList.toggle('on', objVisible[obj]);
+    const isOn = objVisible[obj];
+    btn.classList.toggle('on', isOn);
+    btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
   });
 });
 
@@ -1210,6 +1216,7 @@ function syncSliderToAngle() {
   timeSlider.value = Math.round(t * 1000);
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
+  timeSlider.setAttribute('aria-valuetext', info.timeStr + ' — ' + info.period);
 }
 
 timeSlider.addEventListener('input', () => {
@@ -1219,6 +1226,7 @@ timeSlider.addEventListener('input', () => {
   if (sunAngle > 2 * Math.PI - 0.05) sunAngle = 2 * Math.PI - 0.05;
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
+  timeSlider.setAttribute('aria-valuetext', info.timeStr + ' — ' + info.period);
   if (typeof SFX !== 'undefined') SFX.tick();
 });
 
@@ -1326,7 +1334,7 @@ function renderUserObjList() {
   userObjList.innerHTML = added.map(o =>
     '<div class="user-obj-item">' +
       '<span>' + o.label + '</span>' +
-      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove">&times;</button>' +
+      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" aria-label="Remove ' + o.label + '" title="Remove">&times;</button>' +
     '</div>'
   ).join('');
   const n = added.length;
