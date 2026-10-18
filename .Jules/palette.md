@@ -1,0 +1,3 @@
+## 2025-05-18 - Accessibility for Canvas UI Overlay Controls
+**Learning:** Custom toggle switches and range sliders placed on dark glassmorphism overlays over HTML5 Canvas lack accessible feedback unless explicitly wired with `aria-pressed`, `aria-valuetext`, and high-contrast `:focus-visible` outlines. Default browser focus states often blend into dark overlay backgrounds.
+**Action:** Always assign explicit `:focus-visible` outlines on overlay elements, associate `<label for="...">` tags with form controls, and dynamically update `aria-pressed` / `aria-valuetext` when slider or toggle values change.
