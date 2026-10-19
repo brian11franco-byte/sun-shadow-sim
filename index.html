@@ -44,6 +44,12 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* ── Focus Visible Styles for Accessibility ── */
+  :focus-visible {
+    outline: 3px solid var(--sun) !important;
+    outline-offset: 2px !important;
+  }
+
   #timeLabel {
     position: fixed; top: 14px; left: 14px;
     background: var(--hud-bg); color: #fff; padding: 10px 28px;
@@ -782,12 +788,12 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel">
   <span></span><span></span><span></span>
 </button>
 
 <!-- Collapsible Control Panel -->
-<div id="controlPanel">
+<div id="controlPanel" aria-hidden="true">
   <div class="panel-header">🎮 Controls</div>
 
   <div class="panel-section">
@@ -800,19 +806,19 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench" aria-pressed="true"></button>
     </div>
   </div>
 
@@ -1129,8 +1135,11 @@ const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
+  const isOpen = hamburgerBtn.classList.toggle('open');
   controlPanel.classList.toggle('open');
+  hamburgerBtn.setAttribute('aria-expanded', isOpen);
+  hamburgerBtn.setAttribute('aria-label', isOpen ? 'Close controls' : 'Open controls');
+  controlPanel.setAttribute('aria-hidden', !isOpen);
 });
 
 // --- Object toggles ---
@@ -1139,6 +1148,7 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
     btn.classList.toggle('on', objVisible[obj]);
+    btn.setAttribute('aria-pressed', objVisible[obj]);
   });
 });
 

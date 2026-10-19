@@ -1,0 +1,3 @@
+## 2025-10-19 - ARIA States and Focus Visible Outlines for HTML5 Canvas Overlay Controls
+**Learning:** In standalone HTML5 Canvas web applications with floating overlay controls (like hamburger menus and toggle switches), interactive elements need explicit ARIA states (`aria-pressed`, `aria-expanded`, `aria-controls`, `aria-hidden`) and global `:focus-visible` ring outlines to provide accessible feedback for screen reader and keyboard navigation users.
+**Action:** When working on UI overlays or custom toggle buttons in single-page HTML canvas apps, ensure toggle buttons maintain synchronized `aria-pressed` or `aria-expanded` attributes in their JS event handlers, and include clear `:focus-visible` styles in CSS.
