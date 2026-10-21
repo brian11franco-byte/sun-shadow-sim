@@ -144,6 +144,15 @@
     color: rgba(255,255,255,0.55); margin-bottom: 8px;
   }
 
+  /* Focus visible accessibility styles */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  .part-choice-card:focus-visible {
+    outline: 3px solid var(--sun) !important;
+    outline-offset: 2px !important;
+  }
+
   /* ── Time Slider ── */
   #timeSlider {
     -webkit-appearance: none; appearance: none;
@@ -792,7 +801,7 @@
 
   <div class="panel-section">
     <label>🕐 Time of Day</label>
-    <input type="range" id="timeSlider" min="0" max="1000" value="500">
+    <input type="range" id="timeSlider" min="0" max="1000" value="500" aria-label="Time of day">
     <div id="sliderTimeDisplay">12:00 PM</div>
   </div>
 
@@ -819,7 +828,7 @@
   <div class="panel-section">
     <label>✨ Add 3D Figure</label>
     <div class="add-obj-row">
-      <select id="shapeSelect">
+      <select id="shapeSelect" aria-label="Select 3D shape to add">
         <option value="cone">Cone (Pine Tree)</option>
         <option value="sphere">Sphere (Round Tree)</option>
         <option value="rectangular_prism">Rectangular Prism (Building)</option>
@@ -828,7 +837,7 @@
         <option value="person">Person</option>
         <option value="bench">Bench</option>
       </select>
-      <button id="addObjBtn">+ Add</button>
+      <button id="addObjBtn" aria-label="Add 3D shape">+ Add</button>
     </div>
     <div id="userObjList"></div>
     <div class="user-obj-count" id="userObjCount"></div>
@@ -1326,7 +1335,7 @@ function renderUserObjList() {
   userObjList.innerHTML = added.map(o =>
     '<div class="user-obj-item">' +
       '<span>' + o.label + '</span>' +
-      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove">&times;</button>' +
+      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove" aria-label="Remove ' + o.label + '">&times;</button>' +
     '</div>'
   ).join('');
   const n = added.length;
