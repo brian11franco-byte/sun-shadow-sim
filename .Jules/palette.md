@@ -1,0 +1,3 @@
+## 2025-10-22 - Accessible State Tracking on Custom Toggle Switches and Dynamic Lists
+**Learning:** Icon-only buttons and custom CSS toggle switches in standalone HTML5 canvas applications often lack state announcements (`aria-pressed`, `aria-expanded`, `aria-label`) for screen readers. Dynamic list item buttons (e.g. remove buttons) need contextual labels including the item name rather than generic symbol titles.
+**Action:** Always pair `classList.toggle()` in JS with `setAttribute('aria-pressed', ...)` or `setAttribute('aria-expanded', ...)` and add descriptive `aria-label` attributes to dynamic remove buttons.
