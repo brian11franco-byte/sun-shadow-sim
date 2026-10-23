@@ -1,0 +1,3 @@
+## 2025-02-14 - Keyboard Navigation & Custom Control Focus Indicators
+**Learning:** Single-page Canvas apps with rich custom HTML control overlays (like sliders, custom toggles, and glass-morphism panels) often lack explicit `:focus-visible` ring indicators and ARIA labels, making keyboard navigation difficult for screen reader users and keyboard navigators.
+**Action:** Always ensure custom button overlays, input range sliders, select dropdowns, and dynamic UI elements include global `:focus-visible` outline rings (`outline: 3px solid var(--brand-b); outline-offset: 2px;`) and explicit `aria-label` attributes.
