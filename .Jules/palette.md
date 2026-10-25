@@ -1,0 +1,3 @@
+## 2025-10-25 - HTML5 Canvas Controls ARIA and Focus-Visible Accessibility
+**Learning:** Single-page Canvas apps with overlaid HTML controls often lack native focus rings and rich ARIA states. Adding `:focus-visible` outlines, `role="switch"`, `aria-checked`, `aria-expanded`, `aria-pressed`, and dynamic `aria-valuetext` updates drastically improves keyboard and screen-reader accessibility without visually cluttering touch interactions.
+**Action:** Always verify focus ring visibility and dynamic ARIA attribute updates for modal overlays, custom toggle switches, and slider inputs on single-page canvas applications.

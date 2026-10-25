@@ -38,10 +38,18 @@
   }
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* ── Global Button Touch Optimisation ── */
+  /* ── Global Button Touch Optimisation & Focus States ── */
   button {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  .toggle-switch:focus-visible,
+  .part-choice-card:focus-visible {
+    outline: 3px solid var(--brand-b);
+    outline-offset: 2px;
   }
 
   #timeLabel {
@@ -776,13 +784,13 @@
 <div id="observationBox"></div>
 
 <!-- Mute Button -->
-<button id="muteBtn" aria-label="Toggle sound">
+<button id="muteBtn" aria-label="Mute sound" aria-pressed="false">
   <svg id="muteIconOn" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z"/><path d="M14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
   <svg id="muteIconOff" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel">
   <span></span><span></span><span></span>
 </button>
 
@@ -791,28 +799,28 @@
   <div class="panel-header">🎮 Controls</div>
 
   <div class="panel-section">
-    <label>🕐 Time of Day</label>
-    <input type="range" id="timeSlider" min="0" max="1000" value="500">
+    <label for="timeSlider" id="timeSliderLabel">🕐 Time of Day</label>
+    <input type="range" id="timeSlider" min="0" max="1000" value="500" aria-labelledby="timeSliderLabel" aria-valuetext="12:00 PM — Midday">
     <div id="sliderTimeDisplay">12:00 PM</div>
   </div>
 
   <div class="panel-section">
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
-      <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <span class="toggle-label" id="lbl-person">Person (Scale Reference)</span>
+      <button class="toggle-switch on" data-obj="person" role="switch" aria-checked="true" aria-labelledby="lbl-person"></button>
     </div>
     <div class="obj-toggle">
-      <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <span class="toggle-label" id="lbl-lamppost">Lamppost (Cylinder)</span>
+      <button class="toggle-switch on" data-obj="lamppost" role="switch" aria-checked="true" aria-labelledby="lbl-lamppost"></button>
     </div>
     <div class="obj-toggle">
-      <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <span class="toggle-label" id="lbl-pyramid">Pyramid</span>
+      <button class="toggle-switch on" data-obj="pyramid" role="switch" aria-checked="true" aria-labelledby="lbl-pyramid"></button>
     </div>
     <div class="obj-toggle">
-      <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <span class="toggle-label" id="lbl-bench">Bench (Rectangular Prism)</span>
+      <button class="toggle-switch on" data-obj="bench" role="switch" aria-checked="true" aria-labelledby="lbl-bench"></button>
     </div>
   </div>
 
@@ -1131,6 +1139,9 @@ const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 hamburgerBtn.addEventListener('click', () => {
   hamburgerBtn.classList.toggle('open');
   controlPanel.classList.toggle('open');
+  const isOpen = hamburgerBtn.classList.contains('open');
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  hamburgerBtn.setAttribute('aria-label', isOpen ? 'Close controls' : 'Open controls');
 });
 
 // --- Object toggles ---
@@ -1138,7 +1149,9 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
   btn.addEventListener('click', () => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
-    btn.classList.toggle('on', objVisible[obj]);
+    const isOn = objVisible[obj];
+    btn.classList.toggle('on', isOn);
+    btn.setAttribute('aria-checked', isOn ? 'true' : 'false');
   });
 });
 
@@ -1210,6 +1223,7 @@ function syncSliderToAngle() {
   timeSlider.value = Math.round(t * 1000);
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
+  timeSlider.setAttribute('aria-valuetext', info.timeStr + ' — ' + info.period);
 }
 
 timeSlider.addEventListener('input', () => {
@@ -1219,6 +1233,7 @@ timeSlider.addEventListener('input', () => {
   if (sunAngle > 2 * Math.PI - 0.05) sunAngle = 2 * Math.PI - 0.05;
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
+  timeSlider.setAttribute('aria-valuetext', info.timeStr + ' — ' + info.period);
   if (typeof SFX !== 'undefined') SFX.tick();
 });
 
@@ -3269,6 +3284,8 @@ const SFX = (function () {
     const m = SFX.isMuted();
     iconOn.style.display = m ? 'none' : '';
     iconOff.style.display = m ? '' : 'none';
+    btn.setAttribute('aria-pressed', m ? 'true' : 'false');
+    btn.setAttribute('aria-label', m ? 'Unmute sound' : 'Mute sound');
   }
   btn.addEventListener('click', () => { SFX.setMuted(!SFX.isMuted()); refresh(); });
   refresh();
