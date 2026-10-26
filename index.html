@@ -38,10 +38,14 @@
   }
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* ── Global Button Touch Optimisation ── */
-  button {
+  /* ── Global Button Touch & Focus Optimisation ── */
+  button, input, select {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 3px solid var(--sun);
+    outline-offset: 2px;
   }
 
   #timeLabel {
@@ -782,7 +786,7 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel">
   <span></span><span></span><span></span>
 </button>
 
@@ -791,8 +795,8 @@
   <div class="panel-header">🎮 Controls</div>
 
   <div class="panel-section">
-    <label>🕐 Time of Day</label>
-    <input type="range" id="timeSlider" min="0" max="1000" value="500">
+    <label for="timeSlider">🕐 Time of Day</label>
+    <input type="range" id="timeSlider" min="0" max="1000" value="500" aria-label="Time of day">
     <div id="sliderTimeDisplay">12:00 PM</div>
   </div>
 
@@ -800,19 +804,19 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench" aria-pressed="true"></button>
     </div>
   </div>
 
@@ -1129,8 +1133,9 @@ const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
+  const isOpen = hamburgerBtn.classList.toggle('open');
   controlPanel.classList.toggle('open');
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 });
 
 // --- Object toggles ---
@@ -1139,6 +1144,7 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
     btn.classList.toggle('on', objVisible[obj]);
+    btn.setAttribute('aria-pressed', objVisible[obj] ? 'true' : 'false');
   });
 });
 
@@ -1210,6 +1216,7 @@ function syncSliderToAngle() {
   timeSlider.value = Math.round(t * 1000);
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
+  timeSlider.setAttribute('aria-valuetext', info.timeStr + ' — ' + info.period);
 }
 
 timeSlider.addEventListener('input', () => {
@@ -1219,6 +1226,7 @@ timeSlider.addEventListener('input', () => {
   if (sunAngle > 2 * Math.PI - 0.05) sunAngle = 2 * Math.PI - 0.05;
   const info = getTimeFromAngle(sunAngle);
   sliderTimeDisplay.textContent = info.timeStr;
+  timeSlider.setAttribute('aria-valuetext', info.timeStr + ' — ' + info.period);
   if (typeof SFX !== 'undefined') SFX.tick();
 });
 
