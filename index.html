@@ -38,10 +38,14 @@
   }
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* ── Global Button Touch Optimisation ── */
-  button {
+  /* ── Global Button Touch Optimisation & Accessibility ── */
+  button, input, select {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 3px solid var(--sun) !important;
+    outline-offset: 2px !important;
   }
 
   #timeLabel {
@@ -782,7 +786,7 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel">
   <span></span><span></span><span></span>
 </button>
 
@@ -828,7 +832,7 @@
         <option value="person">Person</option>
         <option value="bench">Bench</option>
       </select>
-      <button id="addObjBtn">+ Add</button>
+      <button id="addObjBtn" aria-label="Add 3D figure to scene">+ Add</button>
     </div>
     <div id="userObjList"></div>
     <div class="user-obj-count" id="userObjCount"></div>
@@ -1129,8 +1133,10 @@ const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
+  const isOpen = hamburgerBtn.classList.toggle('open');
   controlPanel.classList.toggle('open');
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  hamburgerBtn.setAttribute('aria-label', isOpen ? 'Close controls' : 'Open controls');
 });
 
 // --- Object toggles ---
@@ -1321,12 +1327,16 @@ function removeUserObject(id) {
   renderUserObjList();
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function renderUserObjList() {
   const added = sceneObjects.filter(o => o.userAdded);
   userObjList.innerHTML = added.map(o =>
     '<div class="user-obj-item">' +
-      '<span>' + o.label + '</span>' +
-      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" title="Remove">&times;</button>' +
+      '<span>' + escapeHtml(o.label) + '</span>' +
+      '<button class="remove-obj-btn" onclick="removeUserObject(' + o.id + ')" aria-label="Remove ' + escapeHtml(o.label) + '" title="Remove">&times;</button>' +
     '</div>'
   ).join('');
   const n = added.length;
