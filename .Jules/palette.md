@@ -1,0 +1,3 @@
+## 2026-10-29 - [Glassmorphic Controls & Accessibility States]
+**Learning:** Single-page HTML5 canvas apps with glassmorphism dark HUD overlays need explicit `:focus-visible` styling (`outline: 3px solid var(--sun); outline-offset: 2px;`) and dynamic ARIA state attributes (`role="switch"`, `aria-checked`, `aria-expanded`, `aria-pressed`, `aria-valuetext`) so keyboard navigation and screen readers can communicate control states accurately against dark canvas backgrounds.
+**Action:** Always add `:focus-visible` ring outlines and keep ARIA state attributes synchronized in JS click/input handlers for custom UI controls on canvas overlays.
