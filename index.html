@@ -38,6 +38,14 @@
   }
   canvas { display: block; width: 100vw; height: 100vh; }
 
+  button:focus-visible,
+  select:focus-visible,
+  input:focus-visible,
+  .part-choice-card:focus-visible {
+    outline: 3px solid #FFD54F;
+    outline-offset: 2px;
+  }
+
   /* ── Global Button Touch Optimisation ── */
   button {
     touch-action: manipulation;
@@ -776,13 +784,13 @@
 <div id="observationBox"></div>
 
 <!-- Mute Button -->
-<button id="muteBtn" aria-label="Toggle sound">
+<button id="muteBtn" aria-label="Mute sound" aria-pressed="false">
   <svg id="muteIconOn" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z"/><path d="M14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
   <svg id="muteIconOff" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false">
   <span></span><span></span><span></span>
 </button>
 
@@ -800,26 +808,26 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid" aria-pressed="true"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench" aria-pressed="true"></button>
     </div>
   </div>
 
   <div class="panel-section">
     <label>✨ Add 3D Figure</label>
     <div class="add-obj-row">
-      <select id="shapeSelect">
+      <select id="shapeSelect" aria-label="Select 3D figure to add">
         <option value="cone">Cone (Pine Tree)</option>
         <option value="sphere">Sphere (Round Tree)</option>
         <option value="rectangular_prism">Rectangular Prism (Building)</option>
@@ -828,7 +836,7 @@
         <option value="person">Person</option>
         <option value="bench">Bench</option>
       </select>
-      <button id="addObjBtn">+ Add</button>
+      <button id="addObjBtn" aria-label="Add selected 3D figure">+ Add</button>
     </div>
     <div id="userObjList"></div>
     <div class="user-obj-count" id="userObjCount"></div>
@@ -836,7 +844,7 @@
 
   <div class="panel-section">
     <label>▶️ Playback</label>
-    <button id="autoPlayBtn">
+    <button id="autoPlayBtn" aria-pressed="false">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg>
       Auto-Play Full Day &amp; Night
     </button>
@@ -1129,8 +1137,10 @@ const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
+  const isOpen = hamburgerBtn.classList.toggle('open');
   controlPanel.classList.toggle('open');
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  hamburgerBtn.setAttribute('aria-label', isOpen ? 'Close controls' : 'Open controls');
 });
 
 // --- Object toggles ---
@@ -1139,6 +1149,7 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
     btn.classList.toggle('on', objVisible[obj]);
+    btn.setAttribute('aria-pressed', objVisible[obj] ? 'true' : 'false');
   });
 });
 
@@ -1234,6 +1245,7 @@ autoPlayBtn.addEventListener('click', () => {
 function startAutoPlay() {
   autoPlaying = true;
   autoPlayBtn.classList.add('playing');
+  autoPlayBtn.setAttribute('aria-pressed', 'true');
   autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="4" height="12"/><rect x="10" y="2" width="4" height="12"/></svg> Pause';
   if (sunAngle >= 2 * Math.PI - 0.1) sunAngle = 0.05;
   // Sun stepping happens in the master animate() loop.
@@ -1242,6 +1254,7 @@ function startAutoPlay() {
 function stopAutoPlay() {
   autoPlaying = false;
   autoPlayBtn.classList.remove('playing');
+  autoPlayBtn.setAttribute('aria-pressed', 'false');
   autoPlayBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,1 13,8 3,15"/></svg> Auto-Play Full Day &amp; Night';
 }
 
@@ -3269,6 +3282,8 @@ const SFX = (function () {
     const m = SFX.isMuted();
     iconOn.style.display = m ? 'none' : '';
     iconOff.style.display = m ? '' : 'none';
+    btn.setAttribute('aria-label', m ? 'Unmute sound' : 'Mute sound');
+    btn.setAttribute('aria-pressed', m ? 'true' : 'false');
   }
   btn.addEventListener('click', () => { SFX.setMuted(!SFX.isMuted()); refresh(); });
   refresh();
