@@ -1,0 +1,3 @@
+## 2026-07-05 - Overlay & Collapsible Panel Accessible Toggle Pattern
+**Learning:** Collapsible floating UI panels (such as hamburger menus or side draw-outs) need explicit `aria-expanded` and `aria-controls` bindings along with dynamic `aria-label`/`title` updates to announce open/close state transitions to screen reader and keyboard users. Pairing these with global `Escape` key handling that restores focus to the trigger element keeps keyboard navigation fluid and predictable.
+**Action:** Whenever introducing or refining toggleable HUD components or overlay panels in canvas applications, wire `aria-expanded`, dynamic action labels, and Escape dismissal with trigger focus restoration.

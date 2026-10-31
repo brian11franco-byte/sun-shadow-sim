@@ -782,7 +782,7 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel" title="Open controls">
   <span></span><span></span><span></span>
 </button>
 
@@ -1128,9 +1128,24 @@ window.addEventListener('resize', resize);
 const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
+function setControlPanelOpen(isOpen) {
+  hamburgerBtn.classList.toggle('open', isOpen);
+  controlPanel.classList.toggle('open', isOpen);
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  const actionText = isOpen ? 'Close controls' : 'Open controls';
+  hamburgerBtn.setAttribute('aria-label', actionText);
+  hamburgerBtn.title = actionText;
+}
+
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
-  controlPanel.classList.toggle('open');
+  setControlPanelOpen(!controlPanel.classList.contains('open'));
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && controlPanel.classList.contains('open')) {
+    setControlPanelOpen(false);
+    hamburgerBtn.focus();
+  }
 });
 
 // --- Object toggles ---
