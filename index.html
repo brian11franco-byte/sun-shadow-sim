@@ -178,7 +178,11 @@
   .toggle-switch {
     position: relative; width: 40px; height: 22px;
     background: rgba(255,255,255,0.15); border-radius: 11px;
-    cursor: pointer; transition: background 0.2s; border: none; padding: 0;
+    cursor: pointer; transition: background 0.2s, outline 0.15s; border: none; padding: 0;
+  }
+  .toggle-switch:focus-visible {
+    outline: 2px solid var(--sun);
+    outline-offset: 2px;
   }
   .toggle-switch.on { background: rgba(76,175,80,0.7); }
   .toggle-switch::after {
@@ -800,19 +804,19 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="person" aria-label="Toggle person (visible)"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="lamppost" aria-label="Toggle lamppost (visible)"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="pyramid" aria-label="Toggle pyramid (visible)"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="bench" aria-label="Toggle bench (visible)"></button>
     </div>
   </div>
 
@@ -1137,8 +1141,11 @@ hamburgerBtn.addEventListener('click', () => {
 document.querySelectorAll('.toggle-switch').forEach(btn => {
   btn.addEventListener('click', () => {
     const obj = btn.dataset.obj;
-    objVisible[obj] = !objVisible[obj];
-    btn.classList.toggle('on', objVisible[obj]);
+    const isVisible = !objVisible[obj];
+    objVisible[obj] = isVisible;
+    btn.classList.toggle('on', isVisible);
+    btn.setAttribute('aria-checked', String(isVisible));
+    btn.setAttribute('aria-label', `Toggle ${obj} (${isVisible ? 'visible' : 'hidden'})`);
   });
 });
 
