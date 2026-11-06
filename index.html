@@ -178,7 +178,11 @@
   .toggle-switch {
     position: relative; width: 40px; height: 22px;
     background: rgba(255,255,255,0.15); border-radius: 11px;
-    cursor: pointer; transition: background 0.2s; border: none; padding: 0;
+    cursor: pointer; transition: background 0.2s, box-shadow 0.2s; border: none; padding: 0;
+  }
+  .toggle-switch:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #1a1a2e, 0 0 0 4px var(--sun);
   }
   .toggle-switch.on { background: rgba(76,175,80,0.7); }
   .toggle-switch::after {
@@ -800,19 +804,19 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" data-obj="person" role="switch" aria-checked="true" aria-label="Toggle person"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" data-obj="lamppost" role="switch" aria-checked="true" aria-label="Toggle lamppost"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" data-obj="pyramid" role="switch" aria-checked="true" aria-label="Toggle pyramid"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" data-obj="bench" role="switch" aria-checked="true" aria-label="Toggle bench"></button>
     </div>
   </div>
 
@@ -1139,6 +1143,7 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
     btn.classList.toggle('on', objVisible[obj]);
+    btn.setAttribute('aria-checked', objVisible[obj] ? 'true' : 'false');
   });
 });
 
