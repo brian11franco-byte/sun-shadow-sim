@@ -92,6 +92,9 @@
     gap: 5px; padding: 0; transition: background 0.2s;
   }
   #hamburger:hover { background: rgba(0,0,0,0.6); }
+  #hamburger:focus-visible, #muteBtn:focus-visible, #assessmentBtn:focus-visible {
+    outline: 2px solid var(--sun); outline-offset: 3px;
+  }
   #hamburger span {
     display: block; width: 22px; height: 2.5px; background: #fff;
     border-radius: 2px; transition: transform 0.3s, opacity 0.3s;
@@ -782,7 +785,7 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel" aria-haspopup="true">
   <span></span><span></span><span></span>
 </button>
 
@@ -1128,9 +1131,18 @@ window.addEventListener('resize', resize);
 const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
-hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
-  controlPanel.classList.toggle('open');
+function toggleControlPanel(force) {
+  const isOpen = controlPanel.classList.toggle('open', force);
+  hamburgerBtn.classList.toggle('open', isOpen);
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  hamburgerBtn.setAttribute('aria-label', isOpen ? 'Close controls' : 'Open controls');
+}
+hamburgerBtn.addEventListener('click', () => toggleControlPanel());
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && controlPanel.classList.contains('open')) {
+    toggleControlPanel(false);
+    hamburgerBtn.focus();
+  }
 });
 
 // --- Object toggles ---
