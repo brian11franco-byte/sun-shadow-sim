@@ -1,0 +1,5 @@
+# Palette's Journal - Critical UX/Accessibility Learnings
+
+## 2025-05-18 - Canvas Overlay HUD Controls and Overlay Accessibility
+**Learning:** In canvas-dominated single-page educational apps, HUD controls (like hamburger menus and sound toggles) floating over the canvas often lack keyboard focus indicators and standard overlay dismissal patterns (such as Escape key). When floating over dark/changing canvas backgrounds, standard browser focus outlines can blend into the scenery; using high-contrast thematic color tokens (like `var(--sun)` gold ring with an offset) guarantees focus clarity in both daytime and night/dusk sky themes. Furthermore, slide-out control panels must synchronize `aria-expanded` and announce dynamic states ("Open controls" vs. "Close controls") while returning focus to the activator on Escape dismissal.
+**Action:** When working with canvas overlay HUDs, always explicitly define high-contrast `:focus-visible` styling using themed CSS variables, attach ARIA state attributes (`aria-expanded`, `aria-controls`, `aria-haspopup`), and implement Escape-key panel dismissal with focus restoration.
