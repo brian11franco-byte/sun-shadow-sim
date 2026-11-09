@@ -43,6 +43,12 @@
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--sun);
+    outline-offset: 2px;
+  }
 
   #timeLabel {
     position: fixed; top: 14px; left: 14px;
@@ -782,7 +788,7 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel">
   <span></span><span></span><span></span>
 </button>
 
@@ -800,19 +806,19 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="person" aria-label="Toggle person"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="lamppost" aria-label="Toggle lamppost"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="pyramid" aria-label="Toggle pyramid"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="bench" aria-label="Toggle bench"></button>
     </div>
   </div>
 
@@ -1129,8 +1135,9 @@ const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
+  const isOpen = hamburgerBtn.classList.toggle('open');
   controlPanel.classList.toggle('open');
+  hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 });
 
 // --- Object toggles ---
@@ -1138,7 +1145,9 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
   btn.addEventListener('click', () => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
-    btn.classList.toggle('on', objVisible[obj]);
+    const isVisible = objVisible[obj];
+    btn.classList.toggle('on', isVisible);
+    btn.setAttribute('aria-checked', isVisible ? 'true' : 'false');
   });
 });
 
