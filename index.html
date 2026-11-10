@@ -38,10 +38,14 @@
   }
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* ── Global Button Touch Optimisation ── */
+  /* ── Global Button Touch Optimisation & Keyboard Focus ── */
   button {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand-b);
+    outline-offset: 2px;
   }
 
   #timeLabel {
@@ -123,10 +127,10 @@
     box-shadow: 0 8px 32px rgba(0,0,0,0.35);
     transform: translateX(calc(100% + 20px)); opacity: 0;
     transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.3s;
-    pointer-events: none;
+    pointer-events: none; visibility: hidden;
   }
   #controlPanel.open {
-    transform: translateX(0); opacity: 1; pointer-events: auto;
+    transform: translateX(0); opacity: 1; pointer-events: auto; visibility: visible;
   }
   #controlPanel .panel-header {
     padding: 16px 18px 10px; font-size: 15px; font-weight: 700;
@@ -278,11 +282,11 @@
     transform: translateX(-110%);
     transition: transform 0.38s cubic-bezier(.4,0,.2,1);
     font-family: var(--font-display);
-    pointer-events: none;
+    pointer-events: none; visibility: hidden;
   }
   #assessmentOverlay.visible {
     transform: translateX(0);
-    pointer-events: auto;
+    pointer-events: auto; visibility: visible;
   }
 
   /* Card is now just the inner padding wrapper — no extra border/bg */
@@ -782,7 +786,7 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel">
   <span></span><span></span><span></span>
 </button>
 
@@ -1128,9 +1132,20 @@ window.addEventListener('resize', resize);
 const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
+function setControlPanelOpen(open) {
+  hamburgerBtn.classList.toggle('open', open);
+  controlPanel.classList.toggle('open', open);
+  hamburgerBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  hamburgerBtn.setAttribute('aria-label', open ? 'Close controls' : 'Open controls');
+}
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
-  controlPanel.classList.toggle('open');
+  setControlPanelOpen(!controlPanel.classList.contains('open'));
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && controlPanel.classList.contains('open')) {
+    setControlPanelOpen(false);
+    hamburgerBtn.focus();
+  }
 });
 
 // --- Object toggles ---
