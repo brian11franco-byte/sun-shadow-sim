@@ -1,0 +1,3 @@
+## 2025-02-14 - Collapsible Panel Accessibility & Switch Semantics
+**Learning:** Collapsible floating overlay panels and custom switch toggles in HTML5 Canvas apps often omit essential WAI-ARIA states (`aria-expanded`, `aria-controls`, `role="switch"`, `aria-checked`) and keyboard dismissal (`Escape` key returning focus to the toggle button), leaving screen reader and keyboard-only users disoriented.
+**Action:** When working on canvas control overlays, always wire `aria-expanded` and `aria-controls` to the toggle trigger, attach `role="switch"` and `aria-checked` to visual toggle controls, and ensure `Escape` closes open panels while returning focus to the activator.
