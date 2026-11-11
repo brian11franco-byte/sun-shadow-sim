@@ -178,9 +178,12 @@
   .toggle-switch {
     position: relative; width: 40px; height: 22px;
     background: rgba(255,255,255,0.15); border-radius: 11px;
-    cursor: pointer; transition: background 0.2s; border: none; padding: 0;
+    cursor: pointer; transition: background 0.2s, outline-offset 0.2s; border: none; padding: 0;
   }
   .toggle-switch.on { background: rgba(76,175,80,0.7); }
+  .toggle-switch:focus-visible, #autoPlayBtn:focus-visible {
+    outline: 2px solid var(--sun); outline-offset: 2px;
+  }
   .toggle-switch::after {
     content: ''; position: absolute; top: 2px; left: 2px;
     width: 18px; height: 18px; border-radius: 50%;
@@ -782,7 +785,7 @@
 </button>
 
 <!-- Hamburger Button -->
-<button id="hamburger" aria-label="Open controls">
+<button id="hamburger" aria-label="Open controls" aria-expanded="false" aria-controls="controlPanel">
   <span></span><span></span><span></span>
 </button>
 
@@ -800,19 +803,19 @@
     <label>🧍 Scene Objects</label>
     <div class="obj-toggle">
       <span class="toggle-label">Person (Scale Reference)</span>
-      <button class="toggle-switch on" data-obj="person" aria-label="Toggle person"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="person" aria-label="Toggle person"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Lamppost (Cylinder)</span>
-      <button class="toggle-switch on" data-obj="lamppost" aria-label="Toggle lamppost"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="lamppost" aria-label="Toggle lamppost"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Pyramid</span>
-      <button class="toggle-switch on" data-obj="pyramid" aria-label="Toggle pyramid"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="pyramid" aria-label="Toggle pyramid"></button>
     </div>
     <div class="obj-toggle">
       <span class="toggle-label">Bench (Rectangular Prism)</span>
-      <button class="toggle-switch on" data-obj="bench" aria-label="Toggle bench"></button>
+      <button class="toggle-switch on" role="switch" aria-checked="true" data-obj="bench" aria-label="Toggle bench"></button>
     </div>
   </div>
 
@@ -1128,9 +1131,22 @@ window.addEventListener('resize', resize);
 const objVisible = { person: true, lamppost: true, pyramid: true, bench: true };
 
 // --- Hamburger toggle ---
+function setControlPanelOpen(open) {
+  hamburgerBtn.classList.toggle('open', open);
+  controlPanel.classList.toggle('open', open);
+  hamburgerBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 hamburgerBtn.addEventListener('click', () => {
-  hamburgerBtn.classList.toggle('open');
-  controlPanel.classList.toggle('open');
+  const isOpen = controlPanel.classList.contains('open');
+  setControlPanelOpen(!isOpen);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && controlPanel.classList.contains('open')) {
+    setControlPanelOpen(false);
+    hamburgerBtn.focus();
+  }
 });
 
 // --- Object toggles ---
@@ -1139,6 +1155,7 @@ document.querySelectorAll('.toggle-switch').forEach(btn => {
     const obj = btn.dataset.obj;
     objVisible[obj] = !objVisible[obj];
     btn.classList.toggle('on', objVisible[obj]);
+    btn.setAttribute('aria-checked', objVisible[obj] ? 'true' : 'false');
   });
 });
 
